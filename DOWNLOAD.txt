@@ -1,0 +1,9 @@
+Buka file HTML di repo ini lalu tekan tombol Download (Raw atau Download).
+
+Link raw nanti:
+https://raw.githubusercontent.com/AeppeA/kopi-genggam-mobile/main/Kopi_Genggam_Mobile_v2.0.2.html
+
+Cara di HP:
+1. Buka link raw di Chrome
+2. Menu (titik 3) -> Share / Download
+3. Buka file .html yang tersimpan
