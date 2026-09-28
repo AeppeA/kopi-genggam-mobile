@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Kopi Genggam Mobile v2.0.2</title>
+<style>
+body{font-family:system-ui,-apple-system,sans-serif;max-width:420px;margin:0 auto;padding:40px 20px;background:#1c1917;color:#fafaf9;text-align:center}
+h1{font-size:22px;margin:0 0 8px}
+p{color:#a8a29e;font-size:14px;line-height:1.5}
+a,button{display:block;background:#d97706;color:#fff;text-decoration:none;border:0;padding:14px;border-radius:12px;font-weight:700;margin:12px 0;width:100%;font-size:15px}
+a.sec{background:#44403c}
+.spin{width:28px;height:28px;border:3px solid #444;border-top-color:#d97706;border-radius:50%;animation:s .8s linear infinite;margin:16px auto}
+@keyframes s{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<h1>Kopi Genggam</h1>
+<p>Versi 2.0.2</p>
+<div id="spin" class="spin"></div>
+<p id="st">Memuat aplikasi...</p>
+<div id="fb" style="display:none">
+  <p id="err" style="color:#fb7185"></p>
+  <a href="https://cdn.jsdelivr.net/gh/AeppeA/kopi-genggam-mobile@main/app-full.html">Buka lewat CDN</a>
+  <a class="sec" href="https://raw.githubusercontent.com/AeppeA/kopi-genggam-mobile/main/app-full.html" target="_blank">Buka Raw GitHub</a>
+</div>
+<script>
+const URLS=[
+  'https://cdn.jsdelivr.net/gh/AeppeA/kopi-genggam-mobile@main/app-full.html',
+  'https://raw.githubusercontent.com/AeppeA/kopi-genggam-mobile/main/app-full.html'
+];
+async function load(){
+  let lastErr='';
+  for(const u of URLS){
+    try{
+      const r=await fetch(u,{cache:'no-store'});
+      if(!r.ok)throw new Error('HTTP '+r.status);
+      const html=await r.text();
+      if(html.length<1000||!html.includes('Kopi'))throw new Error('Konten tidak valid');
+      document.open();
+      document.write(html);
+      document.close();
+      return;
+    }catch(e){lastErr=String(e&&e.message||e)}
+  }
+  document.getElementById('spin').style.display='none';
+  document.getElementById('st').textContent='Gagal memuat otomatis';
+  document.getElementById('err').textContent=lastErr;
+  document.getElementById('fb').style.display='block';
+}
+load();
+</script>
+</body>
+</html>
