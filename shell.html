@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>KOPI GENGGAM Mobile - Versi 2.0.2</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#1c1917">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="https://placehold.co/192x192/d97706/ffffff?text=KG">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+        body { font-family:'Plus Jakarta Sans',sans-serif;-webkit-tap-highlight-color:transparent; }
+        ::-webkit-scrollbar{width:3px;height:3px}::-webkit-scrollbar-track{background:#f1f1f1}
+        ::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:3px}
+        @media screen and (max-height:500px) and (orientation:landscape){#rotate-warning{display:flex!important}}
+    </style>
+</head>
+<body class="bg-stone-100 text-stone-900 antialiased flex flex-col h-screen overflow-hidden">
+<div id="rotate-warning" class="fixed inset-0 bg-stone-900 text-white z-50 hidden flex-col items-center justify-center p-6 text-center space-y-3">
+    <i class="fa-solid fa-mobile-screen text-4xl text-amber-500 animate-bounce"></i>
+    <h2 class="font-bold text-base">Mohon Gunakan Posisi Potret (Portrait)</h2>
+    <p class="text-xs text-stone-400">Aplikasi ini dirancang khusus untuk kenyamanan penggunaan di handphone dalam mode vertikal.</p>
+</div>
+
+<header class="bg-stone-900 text-white px-4 py-3 flex justify-between items-center shadow-md z-20 shrink-0">
+    <div class="flex items-center space-x-2.5">
+        <div class="bg-amber-600 w-8 h-8 rounded-xl flex items-center justify-center text-white shadow-sm"><i class="fa-solid fa-mug-hot text-sm"></i></div>
+        <div><h1 id="header-title" class="font-bold text-sm tracking-wide">Dashboard (v2.0.2)</h1><p id="current-date" class="text-[10px] text-stone-400"></p></div>
+    </div>
+    <div class="flex items-center space-x-2">
+        <button id="install-btn" onclick="installPWA()" class="hidden bg-amber-600 hover:bg-amber-700 text-white px-2.5 py-1.5 rounded-xl text-xs font-semibold shadow-sm flex items-center space-x-1 active:scale-95 transition animate-pulse"><i class="fa-solid fa-download"></i><span>Install</span></button>
+        <button onclick="exportToExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1.5 rounded-xl text-xs font-semibold shadow-sm flex items-center space-x-1 active:scale-95 transition"><i class="fa-solid fa-file-excel"></i><span>Export</span></button>
+        <label class="bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-1.5 rounded-xl text-xs font-semibold shadow-sm flex items-center space-x-1 active:scale-95 transition cursor-pointer"><i class="fa-solid fa-file-import"></i><span>Import</span><input type="file" id="excel-file-input" accept=".xlsx,.xls" class="hidden" onchange="importFromExcel(event)"></label>
+        <button onclick="switchTab('pos')" class="bg-amber-600 hover:bg-amber-700 text-white px-3 py-1.5 rounded-xl text-xs font-semibold shadow-sm flex items-center space-x-1 active:scale-95 transition"><i class="fa-solid fa-cash-register"></i><span>Kasir</span></button>
+    </div>
+</header>
+
+<div id="pwa-install-banner" class="fixed top-14 left-3 right-3 bg-amber-600 text-white p-3 rounded-2xl shadow-lg z-40 hidden flex items-center justify-between">
+    <div class="flex items-center space-x-2.5"><div class="bg-white text-amber-600 w-9 h-9 rounded-xl flex items-center justify-center font-bold text-base shadow-xs"><i class="fa-solid fa-mug-hot"></i></div>
+    <div><h4 class="font-bold text-xs">Install Kopi Genggam v2.0.2</h4><p class="text-[10px] text-amber-100">Pasang aplikasi di HP Android untuk akses cepat & offline.</p></div></div>
+    <div class="flex items-center space-x-2"><button onclick="installPWA()" class="bg-white text-amber-800 px-3 py-1.5 rounded-xl font-bold text-xs shadow-xs">Install</button><button onclick="dismissPwaBanner()" class="text-amber-200 p-1"><i class="fa-solid fa-xmark"></i></button></div>
+</div>
+
+<main class="flex-1 overflow-y-auto p-3.5 pb-24 space-y-4">
+<section id="tab-dashboard" class="space-y-3.5">
+    <div class="grid grid-cols-2 gap-2.5">
+        <div class="bg-white p-3.5 rounded-2xl shadow-xs border border-stone-200"><p class="text-[11px] text-stone-500 font-medium">Total Penjualan</p><h3 id="dash-rev" class="text-sm font-bold mt-1">Rp 0</h3></div>
+        <div class="bg-white p-3.5 rounded-2xl shadow-xs border border-stone-200"><p class="text-[11px] text-stone-500 font-medium">Saldo Cabang</p><h3 id="dash-saldo-cabang" class="text-sm font-bold text-amber-600 mt-1">Rp 0</h3></div>
+        <div class="bg-white p-3.5 rounded-2xl shadow-xs border border-stone-200"><p class="text-[11px] text-stone-500 font-medium">Belanja Pusat</p><h3 id="dash-belanja-pusat" class="text-sm font-bold mt-1">Rp 0</h3></div>
+        <div class="bg-white p-3.5 rounded-2xl shadow-xs border border-stone-200"><p class="text-[11px] text-stone-500 font-medium">Belanja Cabang</p><h3 id="dash-belanja-cabang" class="text-sm font-bold mt-1">Rp 0</h3></div>
+    </div>
+    <div class="grid grid-cols-2 gap-2.5">
+        <div class="bg-white p-3.5 rounded-2xl shadow-xs border border-stone-200 flex justify-between items-center"><div><p class="text-[11px] text-stone-500 font-medium">Total Setoran Kasir</p><h3 id="dash-setoran" class="text-sm font-bold text-emerald-600 mt-1">Rp 0</h3></div><div class="bg-emerald-50 text-emerald-600 p-2.5 rounded-xl"><i class="fa-solid fa-check-to-slot"></i></div></div>
+        <div class="bg-white p-3.5 rounded-2xl shadow-xs border border-stone-200 flex justify-between items-center"><div><p class="text-[11px] text-stone-500 font-medium">Total Nilai Aset Stok</p><h3 id="dash-aset-stok" class="text-sm font-bold text-indigo-600 mt-1">Rp 0</h3></div><div class="bg-indigo-50 text-indigo-600 p-2.5 rounded-xl"><i class="fa-solid fa-vault"></i></div></div>
+    </div>
+    <div class="bg-white p-4 rounded-2xl shadow-xs border border-stone-200 space-y-2"><h3 class="font-bold text-xs">Penjualan Menu (Qty)</h3><div class="relative h-48"><canvas id="salesChart"></canvas></div></div>
+    <div class="bg-white p-4 rounded-2xl shadow-xs border border-stone-200 space-y-2"><h3 class="font-bold text-xs">Tren Pendapatan Harian</h3><div class="relative h-48"><canvas id="trendChart"></canvas></div></div>
+    <div class="bg-white p-4 rounded-2xl shadow-xs border border-stone-200 space-y-2"><h3 class="font-bold text-xs">Komposisi & Pertumbuhan Total Aset Bisnis</h3><div class="relative h-48"><canvas id="assetChart"></canvas></div></div>
+</section>
+
+<section id="tab-pos" class="hidden space-y-3.5">
+    <div class="bg-white p-3.5 rounded-2xl shadow-xs border border-stone-200 space-y-2.5"><h3 class="font-bold text-xs">Pilih Menu <span class="text-[10px] text-stone-400 font-normal">(Sentuh untuk tambah)</span></h3><div id="pos-menu-grid" class="grid grid-cols-2 gap-2"></div></div>
+    <div class="bg-white p-3.5 rounded-2xl shadow-xs border border-stone-200 space-y-3">
+        <div class="flex justify-between items-center border-b border-stone-100 pb-2"><h3 class="font-bold text-xs">Keranjang Pesanan</h3><button onclick="clearCart()" class="text-[11px] text-rose-600 font-semibold">Reset</button></div>
+        <div id="cart-items" class="space-y-2 max-h-40 overflow-y-auto"></div>
+        <div class="border-t border-stone-100 pt-2 space-y-2"><div class="flex justify-between text-xs text-stone-500 items-center"><span>Tanggal</span><input type="date" id="trx-date" class="bg-stone-50 border border-stone-200 rounded px-2 py-1 text-xs"></div>
+        <div class="flex justify-between text-xs font-bold pt-1"><span>Total Pembayaran:</span><span id="cart-total" class="text-amber-600 text-sm">Rp 0</span></div>
+        <button onclick="checkout()" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-semibold py-2.5 rounded-xl text-xs shadow-sm">Simpan Transaksi</button></div>
+    </div>
+    <div class="bg-white p-3.5 rounded-2xl shadow-xs border border-stone-200 space-y-3"><h3 class="font-bold text-xs">Riwayat Transaksi</h3><div class="overflow-x-auto"><table class="w-full text-left text-[11px]"><thead><tr class="border-b border-stone-200 text-stone-400 uppercase"><th class="py-2 px-2">Tgl/Menu</th><th class="py-2 px-2">Qty/Tot</th><th class="py-2 px-2 text-center">Aksi</th></tr></thead><tbody id="transactions-table-body" class="divide-y divide-stone-100"></tbody></table></div></div>
+</section>
+
+<section id="tab-harga" class="hidden space-y-3.5"><div class="bg-white p-3.5 rounded-2xl shadow-xs border border-stone-200 space-y-3">
+<div class="flex justify-between items-center"><div><h3 class="font-bold text-xs">Daftar Harga & Menu</h3><p class="text-[10px] text-stone-400">Tekan & geser atau gunakan tombol panah untuk atur urutan</p></div><button onclick="openHargaModal()" class="bg-amber-600 text-white px-2.5 py-1.5 rounded-xl text-xs font-semibold"><i class="fa-solid fa-plus"></i> Tambah</button></div>
+<div class="overflow-x-auto"><table class="w-full text-left text-[11px]"><thead><tr class="border-b border-stone-200 text-stone-400 uppercase bg-amber-50"><th class="py-2 px-2">Urutan</th><th class="py-2 px-2">Menu</th><th class="py-2 px-2">Harga</th><th class="py-2 px-2">Point</th><th class="py-2 px-2 text-center">Aksi</th></tr></thead><tbody id="harga-table-body" class="divide-y divide-stone-100"></tbody></table></div></div></section>
+
+<section id="tab-resep" class="hidden space-y-3.5"><div class="bg-white p-3.5 rounded-2xl shadow-xs border border-stone-200 space-y-3">
+<div class="flex justify-between items-center"><h3 class="font-bold text-xs">Tabel Resep Komposisi</h3><button onclick="openResepModal()" class="bg-amber-600 text-white px-2.5 py-1.5 rounded-xl text-xs font-semibold"><i class="fa-solid fa-plus"></i> Resep</button></div>
+<div class="overflow-x-auto"><table class="w-full text-left text-[11px] whitespace-nowrap"><thead><tr id="resep-table-head" class="border-b border-stone-200 text-stone-400 uppercase bg-amber-50"><th>Resep</th></tr></thead><tbody id="resep-table-body" class="divide-y divide-stone-100"></tbody></table></div></div></section>
+
+<section id="tab-belanja" class="hidden space-y-3.5"><div class="bg-white p-3.5 rounded-2xl shadow-xs border border-stone-200 space-y-3">
+<div class="flex justify-between items-center"><h3 class="font-bold text-xs" id="belanja-form-title">Pencatatan Belanja</h3><div class="flex space-x-1"><button onclick="resetBelanjaForm()" id="belanja-cancel-btn" class="hidden bg-stone-200 text-stone-700 px-2.5 py-1.5 rounded-xl text-[11px] font-semibold">Batal</button><button onclick="openBahanModal()" class="bg-stone-800 text-white px-2.5 py-1.5 rounded-xl text-[11px] font-semibold"><i class="fa-solid fa-plus"></i> Barang</button></div></div>
+<div class="bg-stone-50 p-3 rounded-xl border border-stone-200 space-y-2 text-xs">
+<div><label class="font-semibold text-stone-600 text-[10px] block mb-0.5">Tanggal & Barang</label><div class="grid grid-cols-2 gap-2"><input type="date" id="belanja-date" class="bg-white border border-stone-200 rounded px-2 py-1.5 text-xs"><select id="belanja-barang" class="bg-white border border-stone-200 rounded px-2 py-1.5 text-xs"></select></div></div>
+<div class="grid grid-cols-2 gap-2"><div><label class="font-semibold text-stone-600 text-[10px] block mb-0.5">Jumlah</label><input type="number" id="belanja-jumlah" placeholder="cth: 5" min="0.000001" step="any" class="w-full bg-white border border-stone-200 rounded px-2 py-1.5 text-xs"></div><div><label class="font-semibold text-stone-600 text-[10px] block mb-0.5">Total Biaya (Rp)</label><input type="number" id="belanja-total" placeholder="cth: 50000" min="0" step="any" class="w-full bg-white border border-stone-200 rounded px-2 py-1.5 text-xs"></div></div>
+<div><label class="font-semibold text-stone-600 text-[10px] block mb-0.5">Asal Belanja</label><div class="flex space-x-2"><select id="belanja-asal" class="flex-1 bg-white border border-stone-200 rounded px-2 py-1.5 text-xs"><option>Pusat</option><option>Cabang</option></select><button id="belanja-save-btn" onclick="saveBelanja()" class="bg-amber-600 text-white px-4 py-1.5 rounded text-xs font-semibold">Simpan</button></div></div></div>
+<div class="overflow-x-auto"><table class="w-full text-left text-[11px] whitespace-nowrap"><thead><tr class="border-b border-stone-200 text-stone-400 uppercase bg-stone-50"><th class="py-2 px-2">Tanggal</th><th class="py-2 px-2">Barang</th><th class="py-2 px-2">Jumlah</th><th class="py-2 px-2">Total</th><th class="py-2 px-2">Asal</th><th class="py-2 px-2 text-center">Aksi</th></tr></thead><tbody id="belanja-table-body" class="divide-y divide-stone-100"></tbody></table></div></div></section>
+
+<section id="tab-stok" class="hidden space-y-3.5"><div class="bg-white p-3.5 rounded-2xl shadow-xs border border-stone-200 space-y-3"><h3 class="font-bold text-xs">Stok Bahan, Sisa & Total Rupiah</h3><div class="overflow-x-auto"><table class="w-full text-left text-[11px]"><thead><tr class="border-b border-stone-200 text-stone-400 uppercase bg-stone-50"><th class="py-2 px-2">Barang</th><th class="py-2 px-2">In</th><th class="py-2 px-2">Out</th><th class="py-2 px-2">Sisa</th><th class="py-2 px-2">Total Nilai (Rp)</th></tr></thead><tbody id="stok-table-body" class="divide-y divide-stone-100"></tbody></table></div></div></section>
+
+<section id="tab-opname" class="hidden space-y-3.5"><div class="bg-white p-3.5 rounded-2xl shadow-xs border border-stone-200 space-y-3">
+<div class="flex justify-between items-center"><h3 class="font-bold text-xs" id="opname-form-title">Stok Opname Fisik</h3><button onclick="resetOpnameForm()" id="opname-cancel-btn" class="hidden bg-stone-200 text-stone-700 px-2 py-1 rounded text-[10px] font-semibold">Batal</button></div>
+<div class="bg-stone-50 p-3 rounded-xl border border-stone-200 space-y-2 text-xs"><div class="grid grid-cols-2 gap-2"><div><label class="font-semibold text-stone-600 text-[10px] block mb-0.5">Tanggal</label><input type="date" id="opname-date" class="w-full bg-white border border-stone-200 rounded px-2 py-1.5 text-xs"></div><div><label class="font-semibold text-stone-600 text-[10px] block mb-0.5">Barang</label><select id="opname-barang" class="w-full bg-white border border-stone-200 rounded px-2 py-1.5 text-xs"></select></div></div>
+<div><label class="font-semibold text-stone-600 text-[10px] block mb-0.5">Fisik Real</label><div class="flex space-x-2"><input type="number" id="opname-real" placeholder="cth: 120" min="0" step="any" class="flex-1 bg-white border border-stone-200 rounded px-2 py-1.5 text-xs"><button id="opname-save-btn" onclick="saveOpname()" class="bg-amber-600 text-white px-4 py-1.5 rounded text-xs font-semibold">Simpan</button></div></div></div>
+<div class="overflow-x-auto"><table class="w-full text-left text-[11px] whitespace-nowrap"><thead><tr class="border-b border-stone-200 text-stone-400 uppercase bg-stone-50"><th class="py-2 px-2">Tgl</th><th class="py-2 px-2">Barang</th><th class="py-2 px-2">App / Real</th><th class="py-2 px-2">Selisih</th><th class="py-2 px-2 text-center">Aksi</th></tr></thead><tbody id="opname-table-body" class="divide-y divide-stone-100"></tbody></table></div></div></section>
+
+<section id="tab-setoran" class="hidden space-y-3.5"><div class="bg-white p-3.5 rounded-2xl shadow-xs border border-stone-200 space-y-3">
+<div class="flex justify-between items-center"><h3 class="font-bold text-xs" id="setoran-form-title">Pencatatan Setoran Uang</h3><button onclick="resetSetoranForm()" id="setoran-cancel-btn" class="hidden bg-stone-200 text-stone-700 px-2 py-1 rounded text-[10px] font-semibold">Batal</button></div>
+<div class="bg-stone-50 p-3 rounded-xl border border-stone-200 space-y-2 text-xs"><div><label class="font-semibold text-stone-600 text-[10px] block mb-0.5">Tanggal</label><input type="date" id="setoran-date" class="w-full bg-white border border-stone-200 rounded px-2 py-1.5 text-xs"></div>
+<div><label class="font-semibold text-stone-600 text-[10px] block mb-0.5">Nominal (Rp)</label><div class="flex space-x-2"><input type="number" id="setoran-nominal" placeholder="cth: 250000" class="flex-1 bg-white border border-stone-200 rounded px-2 py-1.5 text-xs"><button id="setoran-save-btn" onclick="saveSetoran()" class="bg-emerald-600 text-white px-4 py-1.5 rounded text-xs font-semibold">Setor</button></div></div></div>
+<div class="overflow-x-auto"><table class="w-full text-left text-[11px]"><thead><tr class="border-b border-stone-200 text-stone-400 uppercase bg-stone-50"><th class="py-2 px-2">Tanggal</th><th class="py-2 px-2">Nominal</th><th class="py-2 px-2 text-center">Aksi</th></tr></thead><tbody id="setoran-table-body" class="divide-y divide-stone-100"></tbody></table></div></div></section>
+</main>
+
+<nav class="bg-stone-900 text-stone-400 flex justify-around items-center py-2 px-1 fixed bottom-0 left-0 right-0 z-30 border-t border-stone-800 shadow-lg text-[10px]">
+<script>
+const navItems=[['dashboard','chart-pie','Dash'],['pos','cash-register','Kasir'],['harga','tags','Harga'],['resep','book-open','Resep'],['belanja','cart-shopping','Belanja'],['stok','boxes-stacked','Stok'],['opname','clipboard-check','Opname'],['setoran','wallet','Setor']];
+document.write(navItems.map(x=>`<a href="#" onclick="switchTab('${x[0]}');return false" id="nav-${x[0]}" class="flex flex-col items-center py-1 px-2 hover:text-white"><i class="fa-solid fa-${x[1]} text-sm mb-0.5"></i><span>${x[2]}</span></a>`).join(''));
+</script>
+</nav>
+
+<div id="harga-modal" class="fixed inset-0 bg-stone-900/60 hidden items-center justify-center z-50 p-4"><div class="bg-white rounded-2xl max-w-xs w-full p-4 space-y-3"><h3 id="modal-harga-title" class="font-bold text-xs">Tambah Menu Baru</h3><input type="text" id="modal-menu-name" placeholder="Nama Minuman" class="w-full bg-stone-50 border rounded px-2 py-1.5 text-xs"><input type="number" id="modal-menu-price" placeholder="Harga (Rp)" class="w-full bg-stone-50 border rounded px-2 py-1.5 text-xs"><input type="number" step="0.5" id="modal-menu-point" placeholder="Point" class="w-full bg-stone-50 border rounded px-2 py-1.5 text-xs"><div class="flex space-x-2"><button onclick="closeHargaModal()" class="flex-1 bg-stone-100 py-2 rounded text-xs">Batal</button><button onclick="saveHargaModal()" class="flex-1 bg-amber-600 text-white py-2 rounded text-xs font-semibold">Simpan</button></div></div></div>
+<div id="resep-modal" class="fixed inset-0 bg-stone-900/60 hidden items-center justify-center z-50 p-4"><div class="bg-white rounded-2xl max-w-xs w-full p-4 space-y-3 max-h-[80vh] overflow-y-auto"><h3 id="modal-resep-title" class="font-bold text-xs">Tambah Resep Baru</h3><input type="text" id="modal-resep-name" class="w-full bg-stone-50 border rounded px-2 py-1.5 text-xs"><div id="modal-resep-ingredients" class="space-y-1.5 max-h-36 overflow-y-auto pr-1"></div><div class="flex space-x-2"><button onclick="closeResepModal()" class="flex-1 bg-stone-100 py-2 rounded text-xs">Batal</button><button onclick="saveNewResep()" class="flex-1 bg-amber-600 text-white py-2 rounded text-xs font-semibold">Simpan</button></div></div></div>
+<div id="bahan-modal" class="fixed inset-0 bg-stone-900/60 hidden items-center justify-center z-50 p-4"><div class="bg-white rounded-2xl max-w-xs w-full p-4 space-y-3"><h3 class="font-bold text-xs">Tambah Barang Baru</h3><input type="text" id="modal-bahan-name" placeholder="Nama Barang" class="w-full bg-stone-50 border rounded px-2 py-1.5 text-xs"><div class="flex space-x-2"><button onclick="closeBahanModal()" class="flex-1 bg-stone-100 py-2 rounded text-xs">Batal</button><button onclick="saveNewBahan()" class="flex-1 bg-amber-600 text-white py-2 rounded text-xs font-semibold">Simpan</button></div></div></div>
+<div id="trx-modal" class="fixed inset-0 bg-stone-900/60 hidden items-center justify-center z-50 p-4"><div class="bg-white rounded-2xl max-w-xs w-full p-4 space-y-3"><h3 class="font-bold text-xs">Edit Riwayat Transaksi</h3><input type="date" id="modal-trx-date" class="w-full bg-stone-50 border rounded px-2 py-1.5 text-xs"><select id="modal-trx-name" class="w-full bg-stone-50 border rounded px-2 py-1.5 text-xs"></select><input type="number" id="modal-trx-qty" min="1" class="w-full bg-stone-50 border rounded px-2 py-1.5 text-xs"><div class="flex space-x-2"><button onclick="closeTrxModal()" class="flex-1 bg-stone-100 py-2 rounded text-xs">Batal</button><button onclick="saveTrxEdit()" class="flex-1 bg-amber-600 text-white py-2 rounded text-xs font-semibold">Simpan</button></div></div></div>
+<div id="toast" class="fixed bottom-16 right-3 bg-stone-900 text-white px-3 py-1.5 rounded-xl text-[11px] shadow-lg transform translate-y-20 opacity-0 transition duration-300 z-50"><span id="toast-msg">Berhasil</span></div>
+
+<script src="https://cdn.jsdelivr.net/gh/AeppeA/kopi-genggam-mobile@main/app1.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/AeppeA/kopi-genggam-mobile@main/app2.js"></script>
+</body>
+</html>
