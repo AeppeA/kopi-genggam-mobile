@@ -727,6 +727,15 @@ const APP_VERSION='3.0.3-online', DATA_KEY='kopi_genggam_v3_demo', LEGACY_KEY='k
 // ===== SUPABASE =====
 const SUPABASE_URL = 'https://lmuqprmkbrawzfzbmemi.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_MOY0jmXGorfe8bNFNTiC2g_tLEQ47Mb';
+
+// Database connection diagnostics. The app is online-first; all business data is
+// read/written through Supabase. LocalStorage is only a UI/session cache.
+async function testSupabaseConnection(){
+  if(!sb) throw new Error('Supabase client belum terinisialisasi');
+  const {data,error}=await sb.from('branches').select('id').limit(1);
+  if(error) throw new Error('Database Supabase tidak dapat diakses: '+(error.message||error.code||'unknown error'));
+  return true;
+}
 let sb = null;
 try {
   if (window.supabase && SUPABASE_URL && SUPABASE_ANON_KEY) {
