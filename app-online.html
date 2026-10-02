@@ -394,11 +394,12 @@ body.role-cabang #stok-btn-kelola { display:none !important; }
       <p id="login-error" class="text-[11px] text-rose-400 hidden text-center"></p>
       <div class="relative flex items-center gap-3 py-0.5">
         <div class="flex-1 h-px bg-stone-700"></div>
-        <span class="text-[10px] text-stone-500 uppercase tracking-wider">atau demo lokal</span>
+        <span class="text-[10px] text-stone-500 uppercase tracking-wider">ONLINE</span>
         <div class="flex-1 h-px bg-stone-700"></div>
       </div>
-      <button type="button" onclick="demoLogin('pusat')" class="w-full bg-stone-800 hover:bg-stone-700 border border-stone-600 text-stone-200 font-semibold py-2.5 rounded-xl text-[11px]">Demo Pusat</button>
-      <div id="login-branch-btns" class="grid grid-cols-2 gap-2"></div>
+      <div class="rounded-xl border border-amber-500/20 bg-amber-500/5 px-3 py-2">
+  <p class="text-[10px] text-amber-200 leading-relaxed">Mode online aktif. Gunakan akun email/password Supabase.</p>
+</div>
       <p class="text-[10px] text-stone-500 leading-relaxed">Akun online memakai email/password yang dibuat di Supabase Auth.</p>
     </div>
   </div>
@@ -998,3 +999,2113 @@ async function cloudPushPurchase(item, branchId){
   const row = {
     branch_id: branchId,
     ingredient_id: ing.id,
+    purchase_date: dateKey(item.date)||today(),
+    qty: num(item.jumlah),
+    total_cost: num(item.total),
+    source: (item.asal==='Pusat'?'Pusat':'Cabang'),
+    created_by: session.userId||null
+  };
+  const { data, error } = await sb.from('purchases').insert(row).select('id').maybeSingle();
+  if(error) throw error;
+  return data && data.id;
+}
+
+async function cloudPushDeposit(item, branchId){
+  const row = {
+    branch_id: branchId,
+    deposit_date: dateKey(item.date)||today(),
+    amount: num(item.nominal),
+    note: item.ket||'',
+    created_by: session.userId||null
+  };
+  const { data, error } = await sb.from('cash_deposits').insert(row).select('id').maybeSingle();
+  if(error) throw error;
+  return data && data.id;
+}
+
+async function cloudPushOpname(item, branchId){
+  await ensureCloudMasterMaps();
+  let ing = cloudIngredientByName[item.barang];
+  if(!ing){
+    const { data, error } = await sb.from('ingredients').insert({name:item.barang, unit:'', min_stock:0, is_active:true}).select('id,name').maybeSingle();
+    if(error) throw error;
+    ing = data;
+    cloudIngredientByName[item.barang]=ing;
+  }
+  const row = {
+    branch_id: branchId,
+    ingredient_id: ing.id,
+    opname_date: dateKey(item.date)||today(),
+    system_qty: num(item.apps),
+    physical_qty: num(item.real),
+    variance: num(item.selisih),
+    note: item.ket||'',
+    created_by: session.userId||null
+  };
+  const { data, error } = await sb.from('stock_opnames').insert(row).select('id').maybeSingle();
+  if(error) throw error;
+  return data && data.id;
+}
+
+let menuHarga=[
+{name:"Kopi Genggam",price:8500,point:1.5},{name:"Choco Genggam",price:8500,point:1.5},{name:"Matcha Genggam",price:8500,point:1.5},{name:"Mocha Genggam",price:8500,point:1.5},
+{name:"Kopi Botol",price:42500,point:7.5},{name:"Choco Botol",price:42500,point:7.5},{name:"Matcha Botol",price:42500,point:7.5},{name:"Mocha Botol",price:42500,point:7.5}];
+let bahanList=["Kopi","Coklat","Matcha","UHT","Creamer","SKM","Aren","Botol 200ml","Botol 1000ml"];
+let bahanMeta={};
+let stokFilter='all';
+let stokSearch='';
+let resepData=[
+{name:"Kopi Genggam",Kopi:3,Coklat:0,Matcha:0,UHT:75,Creamer:15,SKM:20,Aren:4,"Botol 200ml":1,"Botol 1000ml":0},
+{name:"Choco Genggam",Kopi:0,Coklat:16,Matcha:0,UHT:32,Creamer:0,SKM:35,Aren:0,"Botol 200ml":1,"Botol 1000ml":0},
+{name:"Matcha Genggam",Kopi:0,Coklat:0,Matcha:22,UHT:45,Creamer:10,SKM:20,Aren:0,"Botol 200ml":1,"Botol 1000ml":0},
+{name:"Mocha Genggam",Kopi:2,Coklat:5,Matcha:0,UHT:50,Creamer:10,SKM:30,Aren:0,"Botol 200ml":1,"Botol 1000ml":0},
+{name:"Kopi Botol",Kopi:15,Coklat:0,Matcha:0,UHT:375,Creamer:75,SKM:100,Aren:20,"Botol 200ml":0,"Botol 1000ml":1},
+{name:"Choco Botol",Kopi:0,Coklat:80,Matcha:0,UHT:160,Creamer:0,SKM:175,Aren:0,"Botol 200ml":0,"Botol 1000ml":1},
+{name:"Matcha Botol",Kopi:0,Coklat:0,Matcha:110,UHT:225,Creamer:50,SKM:100,Aren:0,"Botol 200ml":0,"Botol 1000ml":1},
+{name:"Mocha Botol",Kopi:10,Coklat:25,Matcha:0,UHT:250,Creamer:50,SKM:150,Aren:0,"Botol 200ml":0,"Botol 1000ml":1}];
+let belanjaData=[],transaksiData=[],opnameData=[],setoranData=[],cart=[];
+let editingHargaIndex=null,editingResepIndex=null,editingBelanjaIndex=null,editingTrxIndex=null,editingOpnameIndex=null,editingSetoranIndex=null;
+let salesChartInstance=null,trendChartInstance=null,assetChartInstance=null,deferredPrompt=null;
+
+const num=v=>Number.isFinite(Number(v))?Number(v):0;
+const money=v=>`Rp ${Math.round(num(v)).toLocaleString('id-ID')}`;
+// Tanggal lokal Indonesia (WIB) — hindari mundur 1 hari karena UTC
+const today=()=>{
+    try{
+        return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Jakarta',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+    }catch(e){
+        const d=new Date();const off=7*60;const local=new Date(d.getTime()+(d.getTimezoneOffset()+off)*60000);
+        return local.toISOString().split('T')[0];
+    }
+};
+const uid=()=>Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,8);
+
+// Periode ACUAN master (dashboard/header) — HPP, harga berlaku, stok as-of
+let periodMode='semua';
+let periodFrom='';
+let periodTo='';
+// Periode tampilan per tab (mode 'master' = ikuti acuan)
+let tabPeriod={};
+let currentTabId='dashboard';
+function parseLocalDate(s){
+    if(!s)return null;
+    const m=String(s).slice(0,10).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if(!m)return null;
+    return new Date(+m[1],+m[2]-1,+m[3]);
+}
+function fmtDate(d){
+    const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');
+    return `${y}-${m}-${day}`;
+}
+function startOfWeek(d){
+    const x=new Date(d.getFullYear(),d.getMonth(),d.getDate());
+    const day=(x.getDay()+6)%7;
+    x.setDate(x.getDate()-day);
+    return x;
+}
+function sameDay(a,b){return a&&b&&a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate()}
+function resolvePeriodConfig(scope){
+    if(scope==='master')return {mode:periodMode, from:periodFrom, to:periodTo};
+    const tab=scope||currentTabId;
+    if(tab==='dashboard')return {mode:periodMode, from:periodFrom, to:periodTo};
+    const t=tabPeriod[tab];
+    if(!t || !t.mode || t.mode==='master')return {mode:periodMode, from:periodFrom, to:periodTo};
+    return {mode:t.mode, from:t.from||'', to:t.to||''};
+}
+function getPeriodRange(scope){
+    const cfg=resolvePeriodConfig(scope);
+    const now=new Date();
+    const todayD=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+    const mode=cfg.mode, pFrom=cfg.from, pTo=cfg.to;
+    if(mode==='semua'||mode==='master')return {from:null,to:null};
+    if(mode==='hari'){
+        const t=pFrom?parseLocalDate(pFrom):todayD;
+        return {from:t,to:t};
+    }
+    if(mode==='minggu'){
+        if(pFrom&&pTo){const a=parseLocalDate(pFrom),b=parseLocalDate(pTo);if(a&&b)return {from:a,to:b};}
+        const s=startOfWeek(todayD), e=new Date(s); e.setDate(s.getDate()+6);
+        return {from:s,to:e};
+    }
+    if(mode==='bulan'){
+        if(pFrom&&pTo){const a=parseLocalDate(pFrom),b=parseLocalDate(pTo);if(a&&b)return {from:a,to:b};}
+        const s=new Date(todayD.getFullYear(),todayD.getMonth(),1);
+        const e=new Date(todayD.getFullYear(),todayD.getMonth()+1,0);
+        return {from:s,to:e};
+    }
+    let from=parseLocalDate(pFrom), to=parseLocalDate(pTo);
+    if(from&&to&&from>to){const tmp=from;from=to;to=tmp;}
+    return {from,to};
+}
+function dateKey(s){
+    if(!s)return '';
+    const m=String(s).trim().match(/(\d{4}-\d{2}-\d{2})/);
+    return m?m[1]:'';
+}
+function inPeriod(dateStr, scope){
+    const cfg=resolvePeriodConfig(scope);
+    if(!cfg.mode||cfg.mode==='semua'||cfg.mode==='master')return true;
+    const key=dateKey(dateStr);
+    if(!key)return false;
+    const {from,to}=getPeriodRange(scope);
+    const fromK=from?fmtDate(from):'';
+    const toK=to?fmtDate(to):'';
+    if(fromK&&key<fromK)return false;
+    if(toK&&key>toK)return false;
+    // custom tanpa tanggal = tampilkan semua (hindari kosong total)
+    if(cfg.mode==='custom'&&!fromK&&!toK)return true;
+    return true;
+}
+function tabScope(){return currentTabId==='dashboard'?'master':currentTabId}
+function filteredTransaksi(scope){return transaksiData.filter(t=>inPeriod(t.date, scope!==undefined?scope:tabScope()))}
+function filteredBelanja(scope){return belanjaData.filter(b=>inPeriod(b.date, scope!==undefined?scope:tabScope()))}
+function filteredOpname(scope){return opnameData.filter(o=>inPeriod(o.date, scope!==undefined?scope:tabScope()))}
+function filteredSetoran(scope){return setoranData.filter(s=>inPeriod(s.date, scope!==undefined?scope:tabScope()))}
+/** as-of untuk master (HPP/harga berlaku). */
+function periodAsOfDate(scope){
+    scope=scope===undefined?'master':scope;
+    if(scope==='all')return null;
+    const cfg=resolvePeriodConfig(scope);
+    if(!cfg.mode||cfg.mode==='semua'||cfg.mode==='master'){
+        // master mode 'semua' → null (semua data)
+        if(scope==='master'||scope==='dashboard')return null;
+        // tab ikut master semua
+        if(!tabPeriod[scope]||!tabPeriod[scope].mode||tabPeriod[scope].mode==='master'){
+            if(periodMode==='semua')return null;
+            const r=getPeriodRange('master');
+            return r.to||r.from||null;
+        }
+    }
+    const {to,from}=getPeriodRange(scope);
+    return to||from||null;
+}
+function isEffectiveAsOf(dateStr){
+    const asOf=periodAsOfDate('master');
+    if(!asOf)return true;
+    const key=dateKey(dateStr);
+    if(!key)return true;
+    return key<=fmtDate(asOf);
+}
+function ensureEffectiveDate(obj){
+    if(!obj)return today();
+    if(obj.effectiveDate)return obj.effectiveDate;
+    if(obj.updatedAt)return String(obj.updatedAt).slice(0,10);
+    if(obj.createdAt)return String(obj.createdAt).slice(0,10);
+    return today();
+}
+/**
+ * Harga menu pada tanggal transaksi:
+ * ambil versi dengan effectiveDate terbaru yang <= tanggal transaksi.
+ * history menyimpan harga lama saat diedit.
+ */
+
+function dayBefore(dateStr){
+    const d=parseLocalDate(dateStr);
+    if(!d)return '2000-01-01';
+    d.setDate(d.getDate()-1);
+    return fmtDate(d);
+}
+/**
+ * Sumber kebenaran: m.priceVersions = [{from, price, point}, ...]
+ */
+function ensurePriceVersions(m){
+    if(!m)return [];
+    if(Array.isArray(m.priceVersions)&&m.priceVersions.length){
+        m.priceVersions=m.priceVersions.map(v=>({
+            from:dateKey(v.from||v.effectiveDate)||'2000-01-01',
+            price:num(v.price),
+            point:num(v.point)||0
+        })).sort((a,b)=>a.from.localeCompare(b.from));
+        return m.priceVersions;
+    }
+    const vs=[];
+    if(Array.isArray(m.history)){
+        m.history.forEach(h=>{
+            if(h==null||h.price===undefined||h.price===null||h.price==='')return;
+            vs.push({from:dateKey(h.effectiveDate)||'2000-01-01',price:num(h.price),point:num(h.point)||0});
+        });
+    }
+    const curFrom=dateKey(m.effectiveDate)||'2000-01-01';
+    vs.push({from:curFrom,price:num(m.price),point:num(m.point)||0});
+    const map={};
+    vs.forEach(v=>{map[v.from]=v});
+    m.priceVersions=Object.values(map).sort((a,b)=>a.from.localeCompare(b.from));
+    return m.priceVersions;
+}
+function getMenuVersionAsOf(menuName, dateStr){
+    const m=menuHarga.find(x=>x.name===menuName);
+    if(!m)return null;
+    const key=dateKey(dateStr)||today();
+    const vs=ensurePriceVersions(m);
+    const eligible=vs.filter(v=>v.from&&v.from<=key);
+    if(!eligible.length)return null;
+    eligible.sort((a,b)=>b.from.localeCompare(a.from));
+    const v=eligible[0];
+    return {price:num(v.price),point:num(v.point)||0,effectiveDate:v.from};
+}
+function getMenuPriceAsOf(menuName, dateStr){
+    const v=getMenuVersionAsOf(menuName, dateStr);
+    return v==null?null:num(v.price);
+}
+let hargaViewDate='';
+function hargaAsOfDate(){
+    if(hargaViewDate)return dateKey(hargaViewDate)||today();
+    const scope=(typeof currentTabId!=='undefined'&&currentTabId==='harga')?'harga':'master';
+    const asOf=periodAsOfDate(scope);
+    if(asOf)return fmtDate(asOf);
+    return today();
+}
+function setHargaViewDate(val){
+    hargaViewDate=val||'';
+    renderHarga();
+}
+function migrateMenuHarga(){
+    menuHarga.forEach(m=>{
+        if(!m.effectiveDate)m.effectiveDate=dateKey(m.updatedAt)||dateKey(m.createdAt)||today();
+        if(!Array.isArray(m.history))m.history=[];
+        ensurePriceVersions(m);
+        if(m.priceVersions.length){
+            const last=m.priceVersions[m.priceVersions.length-1];
+            m.price=num(last.price);
+            m.point=num(last.point);
+            m.effectiveDate=last.from;
+        }
+    });
+}
+
+
+function periodLabelText(scope){
+    const cfg=resolvePeriodConfig(scope);
+    const mode=cfg.mode;
+    const {from,to}=getPeriodRange(scope);
+    if(scope && scope!=='master' && scope!=='dashboard'){
+        const t=tabPeriod[scope];
+        if(!t || !t.mode || t.mode==='master')return 'Ikuti acuan: '+periodLabelText('master');
+    }
+    if(mode==='semua'||mode==='master')return 'Semua data';
+    if(mode==='hari')return from?`Tanggal ${fmtDate(from)}`:'Pilih tanggal';
+    if(mode==='minggu')return from&&to?`${fmtDate(from)} s/d ${fmtDate(to)}`:'Minggu ini';
+    if(mode==='bulan')return from&&to?`${fmtDate(from)} s/d ${fmtDate(to)}`:'Bulan ini';
+    if(from&&to)return `${fmtDate(from)} s/d ${fmtDate(to)}`;
+    if(from)return `Dari ${fmtDate(from)}`;
+    if(to)return `Sampai ${fmtDate(to)}`;
+    return 'Pilih rentang tanggal';
+}
+function updatePeriodUI(){
+    const showMasterRange=periodMode==='custom'||periodMode==='hari';
+    // Master header
+    document.querySelectorAll('.period-master-bar [data-period]').forEach(btn=>{
+        const on=btn.getAttribute('data-period')===periodMode;
+        btn.className=on?'px-2 py-1 rounded-lg text-[10px] font-bold bg-amber-600 text-white':'px-2 py-1 rounded-lg text-[10px] font-semibold bg-stone-200 text-stone-600';
+    });
+    document.querySelectorAll('.period-master-bar .period-range-box, #period-range-box').forEach(box=>{
+        box.classList.toggle('hidden', !showMasterRange);
+    });
+    document.querySelectorAll('.period-master-bar .period-to-wrap, #period-to-wrap').forEach(w=>{
+        w.classList.toggle('hidden', periodMode==='hari');
+    });
+    document.querySelectorAll('.period-master-bar .period-from, #period-from').forEach(el=>{
+        if(document.activeElement!==el)el.value=periodFrom||'';
+    });
+    document.querySelectorAll('.period-master-bar .period-to, #period-to').forEach(el=>{
+        if(document.activeElement!==el)el.value=periodTo||'';
+    });
+    const masterLabel=periodLabelText('master');
+    document.querySelectorAll('#period-label, .period-master-bar .period-label-text').forEach(el=>{el.innerText=masterLabel});
+
+    // Tab strips
+    document.querySelectorAll('.period-tab-strip[data-tab]').forEach(strip=>{
+        const tab=strip.getAttribute('data-tab');
+        if(tab==='dashboard'){
+            // dashboard strip mirrors master
+            strip.querySelectorAll('[data-period]').forEach(btn=>{
+                const on=btn.getAttribute('data-period')===periodMode;
+                btn.className=on?'px-2 py-1 rounded-lg text-[10px] font-bold bg-amber-600 text-white':'px-2 py-1 rounded-lg text-[10px] font-semibold bg-stone-200 text-stone-600';
+            });
+            strip.querySelectorAll('.period-range-box').forEach(box=>box.classList.toggle('hidden',!showMasterRange));
+            strip.querySelectorAll('.period-to-wrap').forEach(w=>w.classList.toggle('hidden',periodMode==='hari'));
+            strip.querySelectorAll('.period-from').forEach(el=>{if(document.activeElement!==el)el.value=periodFrom||''});
+            strip.querySelectorAll('.period-to').forEach(el=>{if(document.activeElement!==el)el.value=periodTo||''});
+            strip.querySelectorAll('.period-label-text').forEach(el=>{el.innerText=masterLabel});
+            return;
+        }
+        const cfg=resolvePeriodConfig(tab);
+        const activeMode=(!tabPeriod[tab]||!tabPeriod[tab].mode||tabPeriod[tab].mode==='master')?'master':tabPeriod[tab].mode;
+        strip.querySelectorAll('[data-period]').forEach(btn=>{
+            const on=btn.getAttribute('data-period')===activeMode;
+            btn.className=on?'px-2 py-1 rounded-lg text-[10px] font-bold bg-amber-600 text-white':'px-2 py-1 rounded-lg text-[10px] font-semibold bg-stone-200 text-stone-600';
+        });
+        const showRange=activeMode==='custom'||activeMode==='hari';
+        strip.querySelectorAll('.period-range-box').forEach(box=>box.classList.toggle('hidden',!showRange));
+        strip.querySelectorAll('.period-to-wrap').forEach(w=>w.classList.toggle('hidden', activeMode==='hari'));
+        strip.querySelectorAll('.period-from').forEach(el=>{if(document.activeElement!==el)el.value=cfg.from||''});
+        strip.querySelectorAll('.period-to').forEach(el=>{if(document.activeElement!==el)el.value=cfg.to||''});
+        strip.querySelectorAll('.period-label-text').forEach(el=>{el.innerText=periodLabelText(tab)});
+    });
+}
+function setPeriod(mode, scope){
+    scope=scope||'master';
+    const now=new Date();
+    const todayD=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+    let from='', to='';
+    if(mode==='hari'){from=fmtDate(todayD);to=from;}
+    else if(mode==='minggu'){const s=startOfWeek(todayD),e=new Date(s);e.setDate(s.getDate()+6);from=fmtDate(s);to=fmtDate(e);}
+    else if(mode==='bulan'){from=fmtDate(new Date(todayD.getFullYear(),todayD.getMonth(),1));to=fmtDate(new Date(todayD.getFullYear(),todayD.getMonth()+1,0));}
+    else if(mode==='custom'){from=fmtDate(todayD);to=fmtDate(todayD);}
+    if(scope==='master'||scope==='dashboard'){
+        periodMode=(mode==='master')?'semua':mode;
+        periodFrom=from; periodTo=to;
+    }else{
+        if(mode==='master')delete tabPeriod[scope];
+        else tabPeriod[scope]={mode,from,to};
+    }
+    updatePeriodUI();
+    renderAll();
+}
+function onPeriodDateChangeFromEl(el){
+    const strip=el.closest('.period-tab-strip');
+    const masterBar=el.closest('.period-master-bar');
+    const tab=strip?strip.getAttribute('data-tab'):null;
+    const isMaster=!!masterBar||!tab||tab==='dashboard';
+    const box=el.closest('.period-range-box')||strip||masterBar||document;
+    const fromEl=box.querySelector('.period-from');
+    const toEl=box.querySelector('.period-to');
+    let from=fromEl?fromEl.value:'';
+    let to=toEl?toEl.value:'';
+    if(from&&to&&from>to){const t=from;from=to;to=t;}
+    if(isMaster){
+        if(periodMode==='hari'){periodFrom=from;periodTo=from;}
+        else{
+            periodMode='custom';
+            periodFrom=from;
+            periodTo=to;
+        }
+    }else{
+        let mode=(tabPeriod[tab]&&tabPeriod[tab].mode)||'custom';
+        if(mode==='hari'){to=from;mode='hari';}
+        else mode='custom';
+        tabPeriod[tab]={mode,from,to};
+    }
+    updatePeriodUI();
+    renderAll();
+}
+function onPeriodDateChange(){
+    const fromEl=document.getElementById('period-from');
+    const toEl=document.getElementById('period-to');
+    periodFrom=fromEl?fromEl.value:periodFrom;
+    periodTo=toEl?toEl.value:periodTo;
+    if(periodMode==='hari')periodTo=periodFrom;
+    else if(periodMode!=='custom')periodMode='custom';
+    updatePeriodUI();
+    renderAll();
+}
+
+
+function getAvgCostMapUpTo(dateStr){
+    // Rata-rata seluruh belanja s/d tanggal acuan (lintas bulan)
+    const cost={}, qty={};
+    bahanList.forEach(b=>{cost[b]=0;qty[b]=0});
+    const d=parseLocalDate(dateStr);
+    if(!d){
+        const avg={};bahanList.forEach(b=>{avg[b]=0});return avg;
+    }
+    belanjaData.forEach(b=>{
+        if(qty[b.barang]===undefined)return;
+        const bd=parseLocalDate(b.date);
+        if(!bd||bd>d)return;
+        const q=num(b.jumlah), t=num(b.total)||(q*num(b.harga));
+        if(q>0){qty[b.barang]+=q;cost[b.barang]+=t;}
+    });
+    const avg={};
+    bahanList.forEach(b=>{avg[b]=qty[b]>0?cost[b]/qty[b]:0});
+    return avg;
+}
+/** Untuk tampilan resep/dashboard di periode: pakai harga s/d akhir rentang (atau hari ini). */
+function getAvgCostMapPeriod(){
+    const {to}=getPeriodRange('master');
+    const ref=to?fmtDate(to):(periodTo||today());
+    return getAvgCostMapUpTo(ref||today());
+}
+function calcResepHPP(resep, avgMap){
+    return bahanList.reduce((s,b)=>s+num(resep[b])*num(avgMap[b]),0);
+}
+/** Bahan yang dipakai resep (>0) tapi belum ada harga belanja (rata-rata 0). */
+function getMissingBahanForResep(resep, avgMap){
+    return bahanList.filter(b=>num(resep[b])>0 && !(num(avgMap[b])>0));
+}
+/**
+ * HPP transaksi: harga bahan = rata-rata belanja awal bulan s/d tgl transaksi.
+ * Return null jika ada bahan dipakai yang belum dibeli / tidak tersedia harganya.
+ */
+function calcTrxCOGS(t){
+    const r=resepData.find(x=>x.name===t.name);
+    if(!r)return null;
+    const avg=getAvgCostMapUpTo(t.date);
+    if(getMissingBahanForResep(r, avg).length)return null;
+    return calcResepHPP(r, avg)*num(t.qty);
+}
+function formatHPPCell(resep, avgMap){
+    const missing=getMissingBahanForResep(resep, avgMap);
+    if(missing.length){
+        const list=missing.map(esc).join(', ');
+        return `<span class="text-[10px] text-rose-600 font-semibold" title="Belum ada belanja: ${list}">Bahan belum tersedia</span><div class="text-[9px] text-rose-400 truncate max-w-[110px]">${list}</div>`;
+    }
+    return `<span class="font-bold text-amber-700 whitespace-nowrap">${money(calcResepHPP(resep, avgMap))}</span>`;
+}
+
+
+function showToast(msg){const t=document.getElementById('toast');document.getElementById('toast-msg').innerText=msg;t.classList.remove('translate-y-20','opacity-0');clearTimeout(window.__toastTimer);window.__toastTimer=setTimeout(()=>t.classList.add('translate-y-20','opacity-0'),2200)}
+function backupSnapshot(reason='auto'){
+    try{
+        const snapshot={version:APP_VERSION,backupId:uid(),createdAt:new Date().toISOString(),reason,
+            data:{menuHarga,bahanList,bahanMeta,resepData,belanjaData,transaksiData,opnameData,setoranData}};
+        localStorage.setItem(`kopi_genggam_backup_${snapshot.backupId}`,JSON.stringify(snapshot));
+        let index=JSON.parse(localStorage.getItem(BACKUP_INDEX_KEY)||'[]');
+        index.unshift({key:`kopi_genggam_backup_${snapshot.backupId}`,backupId:snapshot.backupId,createdAt:snapshot.createdAt,reason});
+        index=index.slice(0,20);
+        localStorage.setItem(BACKUP_INDEX_KEY,JSON.stringify(index));
+        return snapshot;
+    }catch(e){console.error('backupSnapshot',e);return null}
+}
+function saveToLocalStorage(reason='save'){
+    try{
+        const payload={schemaVersion:2,appVersion:APP_VERSION,updatedAt:new Date().toISOString(),
+            menuHarga,bahanList,bahanMeta,resepData,belanjaData,transaksiData,opnameData,setoranData};
+        localStorage.setItem(DATA_KEY,JSON.stringify(payload));
+    }catch(e){
+        console.error('saveToLocalStorage',e);
+        showToast('Gagal menyimpan data (penyimpanan penuh?)');
+    }
+}
+function normalizeData(){
+    belanjaData=belanjaData.map(b=>{const jumlah=num(b.jumlah);const total=num(b.total)||(num(b.harga)*jumlah);return {...b,jumlah,total};});
+    transaksiData=transaksiData.map(t=>({...t,qty:num(t.qty),total:num(t.total)||(num(t.qty)*num((menuHarga.find(m=>m.name===t.name)||{}).price))}));
+    opnameData=opnameData.map(o=>({...o,apps:num(o.apps),real:num(o.real),selisih:num(o.selisih)}));
+    setoranData=setoranData.map(s=>({...s,nominal:num(s.nominal)}));
+}
+
+function loadFromLocalStorage(){
+    let saved=localStorage.getItem(DATA_KEY), source='v2';
+    if(!saved){saved=localStorage.getItem(LEGACY_KEY);source='v1'}
+    if(!saved)return;
+    try{
+        const p=JSON.parse(saved);
+        const d=p.data||p;
+        if(d.menuHarga)menuHarga=d.menuHarga;if(d.bahanList)bahanList=d.bahanList;if(d.bahanMeta)bahanMeta=d.bahanMeta;if(d.resepData)resepData=d.resepData;
+        if(d.belanjaData)belanjaData=d.belanjaData;if(d.transaksiData)transaksiData=d.transaksiData;if(d.opnameData)opnameData=d.opnameData;if(d.setoranData)setoranData=d.setoranData;
+        normalizeData();migrateMenuHarga();
+        // Legacy records with "harga" are converted to the original total-biaya model.
+        if(source==='v1'){backupSnapshot('pre-migration-v1');saveToLocalStorage('migration-v1-to-v2');showToast('Data lama dimigrasikan ke versi 2.0');}
+    }catch(e){console.error(e);showToast('Gagal membaca data tersimpan');}
+}
+function getOpnameAdjustMap(scope){
+    const adj={};
+    bahanList.forEach(b=>{adj[b]=0});
+    const asOf=periodAsOfDate(scope||'stok');
+    const asOfK=asOf?fmtDate(asOf):null;
+    opnameData.forEach(o=>{
+        if(adj[o.barang]===undefined)return;
+        if(asOfK){const k=dateKey(o.date);if(!k||k>asOfK)return;}
+        adj[o.barang]+=num(o.selisih);
+    });
+    return adj;
+}
+function getStockMaps(scope){
+    scope=scope||'stok';
+    const inMap={},outMap={},costMap={},qtyMap={},adjMap=getOpnameAdjustMap(scope);
+    bahanList.forEach(b=>{inMap[b]=0;outMap[b]=0;costMap[b]=0;qtyMap[b]=0});
+    const asOf=periodAsOfDate(scope);
+    const asOfK=asOf?fmtDate(asOf):null;
+    belanjaData.forEach(b=>{
+        if(inMap[b.barang]===undefined)return;
+        if(asOfK){const k=dateKey(b.date);if(!k||k>asOfK)return;}
+        const q=num(b.jumlah),total=num(b.total)||(q*num(b.harga));
+        inMap[b.barang]+=q;qtyMap[b.barang]+=q;costMap[b.barang]+=total;
+    });
+    transaksiData.forEach(t=>{
+        if(asOfK){const k=dateKey(t.date);if(!k||k>asOfK)return;}
+        const r=resepData.find(x=>x.name===t.name);
+        if(r)bahanList.forEach(b=>{outMap[b]+=num(r[b])*num(t.qty)});
+    });
+    return {inMap,outMap,costMap,qtyMap,adjMap};
+}
+function calculateStockData(){const {inMap,outMap,costMap,qtyMap,adjMap}=getStockMaps('master');return bahanList.reduce((s,b)=>{const avg=qtyMap[b]>0?costMap[b]/qtyMap[b]:0;const sisa=inMap[b]-outMap[b]+(adjMap[b]||0);return s+Math.max(0,sisa)*avg},0)}
+function renderBahanDropdowns(){['belanja-barang','opname-barang'].forEach(id=>{const s=document.getElementById(id),old=s.value;s.innerHTML=bahanList.map(b=>`<option value="${esc(b)}">${esc(b)}</option>`).join('');if(bahanList.includes(old))s.value=old})}
+function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+
+function renderPOSMenu(){
+    const date=getPosPriceDate();
+    const rows=[...menuHarga.keys()].filter(i=>getMenuVersionAsOf(menuHarga[i].name, date)!==null);
+    const grid=document.getElementById('pos-menu-grid');
+    if(!grid)return;
+    let lab=document.getElementById('pos-price-date-label');
+    if(!lab){
+        lab=document.createElement('p');
+        lab.id='pos-price-date-label';
+        lab.className='text-[11px] text-stone-600 mb-1 font-medium';
+        grid.parentElement?.insertBefore(lab, grid);
+    }
+    lab.innerHTML='Menampilkan harga per tanggal <b class="text-amber-700">'+date+'</b> (atur di "Harga per tgl")';
+    grid.innerHTML=rows.length?rows.map(i=>{
+        const m=menuHarga[i];
+        const ver=getMenuVersionAsOf(m.name, date);
+        const price=ver?num(ver.price):num(m.price);
+        const eff=ver?ver.effectiveDate:'-';
+        return '<div onclick="addToCart('+i+')" class="bg-white p-3 rounded-xl border border-stone-200 active:border-amber-600 shadow-2xs cursor-pointer">'
+            +'<h4 class="font-bold text-stone-800 text-xs truncate">'+esc(m.name)+'</h4>'
+            +'<p class="text-[9px] text-stone-400">versi '+eff+'</p>'
+            +'<div class="flex justify-between items-center mt-1">'
+            +'<span class="text-sm font-extrabold text-amber-600">'+money(price)+'</span>'
+            +'<span class="text-[10px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded">+ Tambah</span></div></div>';
+    }).join(''):'<p class="text-xs text-stone-400 col-span-2 text-center py-4">Tidak ada menu/harga untuk '+date+'</p>';
+}
+
+function addToCart(i){
+    const m=menuHarga[i];
+    const date=getPosPriceDate();
+    const ver=getMenuVersionAsOf(m.name, date);
+    if(!ver)return showToast('Belum ada harga untuk menu ini di tanggal '+date);
+    const price=num(ver.price);
+    const x=cart.find(c=>c.name===m.name);
+    if(x){x.qty++;x.price=price;}
+    else cart.push({name:m.name,price,qty:1});
+    renderCart();
+}
+function getPosPriceDate(){
+    // Cabang: selalu ikut tanggal transaksi (tidak ada pilih harga per tgl)
+    if(typeof isCabang==='function'&&isCabang()){
+      const trx=document.getElementById('trx-date');
+      return dateKey(trx?.value)||today();
+    }
+    const el=document.getElementById('pos-price-date');
+    if(el&&el.value)return dateKey(el.value)||today();
+    const trx=document.getElementById('trx-date');
+    return dateKey(trx?.value)||today();
+}
+function onTrxDateChange(){
+    // default: samakan harga per tgl dengan tgl transaksi (user bisa ubah manual)
+    const trx=document.getElementById('trx-date');
+    const pd=document.getElementById('pos-price-date');
+    if(trx&&pd&&trx.value)pd.value=trx.value;
+    refreshCartPrices();
+}
+function refreshCartPrices(){
+    const date=getPosPriceDate();
+    cart.forEach(c=>{
+        const ver=getMenuVersionAsOf(c.name, date);
+        if(ver)c.price=ver.price;
+    });
+    renderCart();
+    renderPOSMenu();
+}
+function updateCartQty(i,d){cart[i].qty+=d;if(cart[i].qty<=0)cart.splice(i,1);renderCart()}
+function setCartQty(i,v){const q=parseInt(v);if(!Number.isFinite(q)||q<=0)cart.splice(i,1);else cart[i].qty=q;renderCart()}
+function clearCart(){cart=[];renderCart()}
+function renderCart(){const c=document.getElementById('cart-items');if(!cart.length){c.innerHTML='<p class="text-xs text-stone-400 text-center py-4">Keranjang kosong</p>';document.getElementById('cart-total').innerText='Rp 0';return}let total=0;c.innerHTML=cart.map((x,i)=>{total+=x.price*x.qty;return `<div class="flex items-center justify-between bg-stone-50 p-2 rounded-lg border text-xs"><div class="max-w-[110px]"><p class="font-bold truncate text-[11px]">${esc(x.name)}</p><p class="text-[10px] text-amber-600">${money(x.price)}</p></div><div class="flex items-center space-x-1"><button onclick="updateCartQty(${i},-1)" class="w-6 h-6 bg-white border rounded">-</button><input type="number" min="1" value="${x.qty}" onchange="setCartQty(${i},this.value)" class="w-8 text-center bg-white border rounded font-bold text-xs"><button onclick="updateCartQty(${i},1)" class="w-6 h-6 bg-white border rounded">+</button></div></div>`}).join('');document.getElementById('cart-total').innerText=money(total)}
+
+function getCartRequirements(){
+    const need={};
+    bahanList.forEach(b=>{need[b]=0});
+    cart.forEach(c=>{const r=resepData.find(x=>x.name===c.name);if(r)bahanList.forEach(b=>{need[b]+=num(r[b])*num(c.qty)})});
+    return need;
+}
+function getStockShortfalls(){
+    const {inMap,outMap,adjMap}=getStockMaps('all'),need=getCartRequirements(),list=[];
+    bahanList.forEach(b=>{
+        const available=num(inMap[b])-num(outMap[b])+num(adjMap[b]||0);
+        const req=num(need[b]);
+        if(req>0&&req>available)list.push({barang:b,need:req,available,short:req-available});
+    });
+    return list;
+}
+function checkout(){
+    if(typeof blockIfAllBranches==='function'&&blockIfAllBranches("mencatat transaksi"))return;
+    if(!cart.length)return showToast('Keranjang kosong!');
+    const shortfalls=getStockShortfalls();
+    if(shortfalls.length){
+        const detail=shortfalls.map(s=>`• ${s.barang}: perlu ${s.need}, sisa ${s.available} (kurang ${s.short})`).join('\n');
+        if(!confirm('⚠ Stok tidak cukup:\n'+detail+'\n\nLanjut simpan transaksi?'))return;
+    }
+    const date=document.getElementById('trx-date').value||today();
+    const newRows=[];
+    cart.forEach(c=>{
+      const row={id:uid(),date,name:c.name,qty:num(c.qty),total:num(c.price)*num(c.qty)};
+      transaksiData.push(row);
+      newRows.push(row);
+    });
+    cart=[];renderCart();renderTransactions();updateDashboard();updateCharts();saveToLocalStorage();
+    const baseMsg=shortfalls.length?'Transaksi disimpan lokal (stok minus!)':'Transaksi disimpan lokal';
+    showToast(baseMsg);
+    // push cloud — selalu beri status agar tidak diam
+    if(!isOnlineSession()){
+      setTimeout(()=>showToast(baseMsg+' · offline/demo (tidak ke server)'),800);
+      return;
+    }
+    const bid=onlineBranchId();
+    if(!bid){
+      setTimeout(()=>showToast(baseMsg+' · pilih SATU cabang (bukan Semua) untuk sync'),800);
+      return;
+    }
+    setTimeout(()=>showToast('Mengirim ke cloud...'),500);
+    (async()=>{
+      try{
+        for(const r of newRows){
+          const cid=await cloudPushSale(r,bid);
+          if(cid) r.id=cid;
+        }
+        saveGlobalsIntoActiveBranch();saveToLocalStorage();
+        showToast('✓ Cloud OK · tersimpan di server');
+      }catch(e){
+        console.error(e);
+        showToast('✗ Cloud gagal: '+(e.message||String(e)));
+      }
+    })();
+}
+function renderTransactions(){
+    const b=document.getElementById('transactions-table-body');
+    const rows=[...transaksiData.keys()].filter(i=>inPeriod(transaksiData[i].date,'pos')).reverse();
+    if(!rows.length){b.innerHTML='<tr><td colspan="3" class="text-center py-4 text-stone-400">Tidak ada transaksi di periode ini</td></tr>';return}
+    b.innerHTML=rows.map(i=>{const t=transaksiData[i];const br=t._branchName?`<span class="text-[9px] bg-stone-100 text-stone-500 px-1 rounded ml-1">${esc(t._branchName)}</span>`:'';return `<tr><td class="py-2 px-2"><p class="font-semibold">${esc(t.name)}${br}</p><p class="text-[10px] text-stone-400">${t.date}</p></td><td class="py-2 px-2"><p>${t.qty} Pcs</p><p class="font-bold">${money(t.total)}</p></td><td class="py-2 px-2 text-center"><button onclick="editTransaction(${i})" class="text-amber-600 p-1"><i class="fa-solid fa-pen-to-square"></i></button><button onclick="deleteTransaction(${i})" class="text-rose-600 p-1"><i class="fa-solid fa-trash"></i></button></td></tr>`}).join('');
+}
+function editTransaction(i){
+    if(cabangNeedApproval("ubah transaksi"))return;editingTrxIndex=i;const t=transaksiData[i];document.getElementById('modal-trx-date').value=t.date;document.getElementById('modal-trx-qty').value=t.qty;document.getElementById('modal-trx-name').innerHTML=menuHarga.map(m=>`<option ${m.name===t.name?'selected':''}>${esc(m.name)}</option>`).join('');document.getElementById('trx-modal').classList.remove('hidden');document.getElementById('trx-modal').classList.add('flex')}
+function closeTrxModal(){editingTrxIndex=null;document.getElementById('trx-modal').classList.add('hidden');document.getElementById('trx-modal').classList.remove('flex')}
+function saveTrxEdit(){if(editingTrxIndex===null)return;const date=document.getElementById('modal-trx-date').value,name=document.getElementById('modal-trx-name').value,qty=parseInt(document.getElementById('modal-trx-qty').value),m=menuHarga.find(x=>x.name===name);if(!date||qty<=0||!m)return showToast('Data transaksi tidak valid!');transaksiData[editingTrxIndex]={...transaksiData[editingTrxIndex],date,name,qty,total:num(m.price)*qty};closeTrxModal();renderTransactions();updateDashboard();updateCharts();saveToLocalStorage();showToast('Transaksi diperbarui!')}
+function deleteTransaction(i){
+    if(cabangNeedApproval("hapus transaksi"))return;if(confirm('Hapus transaksi ini?')){transaksiData.splice(i,1);renderTransactions();updateDashboard();updateCharts();saveToLocalStorage();showToast('Transaksi dihapus.')}}
+
+function renderHarga(){
+    const asOf=hargaAsOfDate();
+    let bar=document.getElementById('harga-view-date-bar');
+    if(!bar){
+        const sec=document.getElementById('tab-harga');
+        const strip=sec&&sec.querySelector('.period-tab-strip');
+        bar=document.createElement('div');
+        bar.id='harga-view-date-bar';
+        bar.className='bg-amber-50 border border-amber-200 rounded-xl p-2.5 flex flex-wrap items-center gap-2 text-[11px]';
+        bar.innerHTML='<span class="font-semibold text-amber-900">Lihat harga per tanggal:</span>'
+            +'<input type="date" id="harga-view-date" class="bg-white border border-amber-300 rounded px-2 py-1 text-xs" onchange="setHargaViewDate(this.value)">'
+            +'<button type="button" class="text-[10px] bg-white border px-2 py-1 rounded" onclick="setHargaViewDate(today());var el=document.getElementById(\'harga-view-date\');if(el)el.value=today()">Hari ini</button>'
+            +'<span class="text-stone-500">Harga yang berlaku di tanggal ini</span>';
+        if(strip)strip.after(bar); else if(sec)sec.insertBefore(bar, sec.firstChild);
+    }
+    const inp=document.getElementById('harga-view-date');
+    if(inp&&document.activeElement!==inp)inp.value=asOf;
+
+    const rows=[...menuHarga.keys()].filter(i=>getMenuVersionAsOf(menuHarga[i].name, asOf)!==null);
+    const head=document.querySelector('#tab-harga thead tr');
+    if(head){
+        head.innerHTML='<th class="py-2 px-2">#</th><th class="py-2 px-2">Menu</th><th class="py-2 px-2">Harga @ '+asOf+'</th><th class="py-2 px-2">Point</th><th class="py-2 px-2">Versi dari</th><th class="py-2 px-2">Riwayat</th><th class="py-2 px-2 text-center">Aksi</th>';
+    }
+    const body=document.getElementById('harga-table-body');
+    if(!body)return;
+    body.innerHTML=rows.length?rows.map(i=>{
+        const h=menuHarga[i];
+        const ver=getMenuVersionAsOf(h.name, asOf);
+        const price=ver?ver.price:h.price;
+        const point=ver?ver.point:h.point;
+        const eff=ver?ver.effectiveDate:'-';
+        const nVer=(ensurePriceVersions(h)||[]).length;
+        return '<tr><td class="py-2 px-2 text-center">'+i+1+'</td>'
+            +'<td class="py-2 px-2 font-semibold">'+esc(h.name)+'</td>'
+            +'<td class="py-2 px-2 text-amber-600 font-bold text-sm">'+money(price)+'</td>'
+            +'<td class="py-2 px-2">'+point+'</td>'
+            +'<td class="py-2 px-2 text-[10px] text-stone-500">'+eff+'</td>'
+            +'<td class="py-2 px-2 text-[10px]">'+nVer+' versi</td>'
+            +'<td class="text-center whitespace-nowrap">'
+            +'<button type="button" onclick="openHargaModal('+i+')" class="text-amber-600 p-1">✎</button>'
+            +'<button type="button" onclick="deleteHarga('+i+')" class="text-rose-600 p-1">×</button></td></tr>';
+    }).join(''):'<tr><td colspan="7" class="text-center py-4 text-stone-400">Tidak ada harga pada '+asOf+'</td></tr>';
+}
+function onDragStart(e,i){draggedIndex=i;e.dataTransfer.effectAllowed='move'}function onDragOver(e){e.preventDefault()}function onDrop(e,i){e.preventDefault();if(draggedIndex===null||draggedIndex===i)return;const x=menuHarga.splice(draggedIndex,1)[0];menuHarga.splice(i,0,x);draggedIndex=null;renderHarga();renderPOSMenu();saveToLocalStorage();showToast('Urutan menu diperbarui!')}
+function moveMenu(i,d){const j=i+d;if(j<0||j>=menuHarga.length)return;[menuHarga[i],menuHarga[j]]=[menuHarga[j],menuHarga[i]];renderHarga();renderPOSMenu();saveToLocalStorage()}
+function openHargaModal(i=null){
+    editingHargaIndex=i;
+    document.getElementById('modal-harga-title').innerText=i===null?'Tambah Menu Baru':'Edit Menu & Harga';
+    document.getElementById('modal-menu-name').value=i===null?'':menuHarga[i].name;
+    document.getElementById('modal-menu-price').value=i===null?'':menuHarga[i].price;
+    document.getElementById('modal-menu-point').value=i===null?'':menuHarga[i].point;
+    document.getElementById('modal-menu-effective').value=i===null?today():(dateKey(menuHarga[i].effectiveDate)||today());
+    let histEl=document.getElementById('modal-menu-history');
+    if(!histEl){
+        histEl=document.createElement('div');
+        histEl.id='modal-menu-history';
+        histEl.className='text-[10px] text-stone-500 bg-stone-50 rounded p-2 max-h-28 overflow-y-auto';
+        const eff=document.getElementById('modal-menu-effective');
+        if(eff&&eff.parentElement)eff.parentElement.after(histEl);
+    }
+    if(i===null){histEl.innerHTML='Belum ada riwayat';}
+    else{
+        const vs=ensurePriceVersions(menuHarga[i]);
+        histEl.innerHTML=vs.length?('<b>Riwayat harga:</b><br>'+vs.map(v=>v.from+': '+money(v.price)).join('<br>')):'Belum ada riwayat';
+    }
+    document.getElementById('harga-modal').classList.remove('hidden');
+    document.getElementById('harga-modal').classList.add('flex');
+}
+function closeHargaModal(){editingHargaIndex=null;document.getElementById('harga-modal').classList.add('hidden');document.getElementById('harga-modal').classList.remove('flex')}
+function ensureResepForMenu(menuName){
+    let r=resepData.find(x=>x.name===menuName);
+    if(!r){
+        r={name:menuName};
+        bahanList.forEach(b=>{r[b]=0});
+        resepData.push(r);
+    }else{
+        // pastikan semua bahan terbaru ada di resep
+        bahanList.forEach(b=>{if(r[b]===undefined)r[b]=0});
+    }
+    return r;
+}
+function saveHargaModal(){
+    const name=document.getElementById('modal-menu-name').value.trim();
+    const price=parseFloat(document.getElementById('modal-menu-price').value);
+    const point=parseFloat(document.getElementById('modal-menu-point').value)||0;
+    const effectiveDate=dateKey(document.getElementById('modal-menu-effective').value)||today();
+    if(!name||!Number.isFinite(price)||price<0)return showToast('Isi nama & harga dengan benar!');
+    if(menuHarga.some((m,i)=>m.name===name&&i!==editingHargaIndex))return showToast('Menu sudah ada!');
+
+    if(editingHargaIndex!==null){
+        const prev=menuHarga[editingHargaIndex];
+        const oldName=prev.name;
+        const oldPrice=num(prev.price);
+        const oldPoint=num(prev.point)||0;
+        const vs=ensurePriceVersions(prev).map(v=>({from:v.from,price:num(v.price),point:num(v.point)||0}));
+        // Jika belum ada versi sebelum effectiveDate, simpan harga lama dari awal
+        const hasBefore=vs.some(v=>v.from<effectiveDate);
+        if(!hasBefore){
+            vs.push({from:'2000-01-01',price:oldPrice,point:oldPoint});
+        }
+        // Upsert versi pada effectiveDate
+        const map={};
+        vs.forEach(v=>{map[v.from]={from:v.from,price:num(v.price),point:num(v.point)||0}});
+        map[effectiveDate]={from:effectiveDate,price:price,point:point};
+        const final=Object.values(map).sort((a,b)=>a.from.localeCompare(b.from));
+        const last=final[final.length-1];
+        menuHarga[editingHargaIndex]={
+            name,price:num(last.price),point:num(last.point),effectiveDate:last.from,
+            priceVersions:final,
+            history:final.map(v=>({price:v.price,point:v.point,effectiveDate:v.from})),
+            createdAt:prev.createdAt||new Date().toISOString(),
+            updatedAt:new Date().toISOString()
+        };
+        const r=resepData.find(x=>x.name===oldName);
+        if(r){r.name=name;bahanList.forEach(b=>{if(r[b]===undefined)r[b]=0});}
+        else ensureResepForMenu(name);
+        if(oldName!==name)transaksiData.forEach(t=>{if(t.name===oldName)t.name=name});
+        const pBefore=getMenuPriceAsOf(name, dayBefore(effectiveDate));
+        const pOn=getMenuPriceAsOf(name, effectiveDate);
+        showToast('OK! Sblm '+effectiveDate+': '+money(pBefore)+' | Sejak '+effectiveDate+': '+money(pOn));
+    }else{
+        const final=[{from:effectiveDate,price,point}];
+        menuHarga.push({
+            name,price,point,effectiveDate,
+            priceVersions:final,
+            history:[{price,point,effectiveDate}],
+            createdAt:new Date().toISOString()
+        });
+        ensureResepForMenu(name);
+        const nr=resepData.find(x=>x.name===name);if(nr&&!nr.effectiveDate)nr.effectiveDate=effectiveDate;
+        showToast('Menu baru — berlaku '+effectiveDate);
+    }
+    closeHargaModal();
+    renderAll();
+}
+function deleteHarga(i){
+    const name=menuHarga[i].name;
+    if(!confirm('Hapus menu "'+name+'" dari Daftar Harga?\n\nResep dengan nama sama TIDAK dihapus.'))return;
+    backupSnapshot('before-delete-menu');
+    menuHarga.splice(i,1);
+    renderAll();
+    showToast('Menu dihapus dari Daftar Harga. Resep tetap ada.');
+}
+
+function renderResep(){
+    const avg=getAvgCostMapPeriod();
+    const head=document.getElementById('resep-table-head');
+    const body=document.getElementById('resep-table-body');
+    const rows=[...resepData.keys()].filter(i=>isEffectiveAsOf(ensureEffectiveDate(resepData[i])));
+    head.innerHTML='<th class="py-2 px-2">Resep</th>'+bahanList.map(b=>`<th class="py-2 px-1" title="Harga rata2: ${money(avg[b])}">${esc(b)}</th>`).join('')+'<th class="py-2 px-1">Berlaku</th><th class="py-2 px-2 text-amber-700">HPP</th><th>Aksi</th>';
+    body.innerHTML=rows.length?rows.map(i=>{
+        const r=resepData[i];
+        const eff=ensureEffectiveDate(r);
+        return `<tr><td class="py-2 px-2 font-bold">${esc(r.name)}</td>${bahanList.map(b=>`<td class="py-2 px-1">${num(r[b])}</td>`).join('')}<td class="py-2 px-1 text-[10px] text-stone-500">${eff}</td><td class="py-2 px-2 align-top">${formatHPPCell(r,avg)}</td><td><button onclick="openResepModal(${i})" class="text-amber-600 p-1">✎</button><button onclick="deleteResep(${i})" class="text-rose-600 p-1">×</button></td></tr>`;
+    }).join(''):'<tr><td colspan="20" class="text-center py-4 text-stone-400">Tidak ada resep berlaku di periode ini</td></tr>';
+    let note=document.getElementById('resep-hpp-note');
+    if(!note){
+        note=document.createElement('p');
+        note.id='resep-hpp-note';
+        note.className='text-[10px] text-stone-400 mt-1';
+        const wrap=document.getElementById('tab-resep');
+        if(wrap)wrap.querySelector('.bg-white')?.appendChild(note);
+    }
+    if(note){
+        const pl=document.getElementById('period-label')?.innerText||periodMode;
+        note.innerHTML=`Resep ditampilkan jika <b>berlaku mulai ≤ akhir periode</b> (${pl}). HPP pakai rata-rata belanja s/d tanggal acuan. Bahan tanpa belanja → belum tersedia.`;
+    }
+}
+function openResepModal(i=null){
+    editingResepIndex=i;
+    const r=i===null?{name:''}:resepData[i];
+    document.getElementById('modal-resep-title').innerText=i===null?'Tambah Resep Baru':'Edit Resep Komposisi';
+    document.getElementById('modal-resep-name').value=r.name;
+    document.getElementById('modal-resep-name').disabled=i!==null;
+    document.getElementById('modal-resep-effective').value=i===null?today():ensureEffectiveDate(r);
+    document.getElementById('modal-resep-ingredients').innerHTML=bahanList.map(b=>`<div class="flex justify-between bg-stone-50 px-2.5 py-1 rounded-lg border"><span class="text-[11px]">${esc(b)}</span><input type="number" id="resep-qty-${CSS.escape(b)}" value="${num(r[b])}" min="0" step="any" class="w-14 border rounded text-xs text-center"></div>`).join('');
+    document.getElementById('resep-modal').classList.remove('hidden');
+    document.getElementById('resep-modal').classList.add('flex');
+}
+function closeResepModal(){editingResepIndex=null;document.getElementById('resep-modal').classList.add('hidden');document.getElementById('resep-modal').classList.remove('flex')}
+function saveNewResep(){
+    const name=document.getElementById('modal-resep-name').value.trim();
+    const effectiveDate=document.getElementById('modal-resep-effective').value||today();
+    if(!name)return showToast('Nama resep kosong!');
+    if(editingResepIndex===null&&resepData.some(r=>r.name===name))return showToast('Resep sudah ada!');
+    let r=editingResepIndex===null?{name}:resepData[editingResepIndex];
+    bahanList.forEach(b=>r[b]=num(document.getElementById(`resep-qty-${CSS.escape(b)}`).value));
+    r.effectiveDate=effectiveDate;
+    r.updatedAt=new Date().toISOString();
+    if(editingResepIndex===null){
+        r.createdAt=new Date().toISOString();
+        resepData.push(r);
+        if(!menuHarga.some(m=>m.name===name))menuHarga.push({name,price:10000,point:2,effectiveDate});
+    }
+    closeResepModal();renderAll();showToast('Resep disimpan — berlaku mulai '+effectiveDate);
+}
+function deleteResep(i){
+    const name=resepData[i]?.name||'';
+    if(!confirm(`Hapus resep "${name}"?\n\nMenu di Daftar Harga dengan nama yang sama juga akan dihapus.`))return;
+    backupSnapshot('before-delete-resep');
+    resepData.splice(i,1);
+    // Sinkron: hapus menu harga dengan nama sama
+    menuHarga=menuHarga.filter(m=>m.name!==name);
+    renderAll();
+    showToast('Resep dan menu terkait dihapus.');
+}
+
+function belanjaDuplicate(date,barang,asal,jumlah,total,exclude=-1){return belanjaData.some((b,i)=>i!==exclude&&b.date===date&&b.barang===barang&&b.asal===asal&&num(b.jumlah)===jumlah&&num(b.total)===total)}
+function saveBelanja(){
+    if(typeof blockIfAllBranches==='function'&&blockIfAllBranches("mencatat belanja"))return;
+    const date=document.getElementById('belanja-date').value,barang=document.getElementById('belanja-barang').value,jumlah=parseFloat(document.getElementById('belanja-jumlah').value),total=parseFloat(document.getElementById('belanja-total').value);let asal=document.getElementById('belanja-asal').value;
+    if(typeof isCabang==='function'&&isCabang())asal='Cabang';
+    if(!date||!barang||!Number.isFinite(jumlah)||jumlah<=0||!Number.isFinite(total)||total<0)return showToast('Data belanja tidak valid!');
+    if(belanjaDuplicate(date,barang,asal,jumlah,total,editingBelanjaIndex??-1))return showToast('Duplikasi belanja terdeteksi!');
+    const isEdit=editingBelanjaIndex!==null;
+    const row={id:belanjaData[editingBelanjaIndex]?.id||uid(),date,barang,jumlah,total,asal};
+    if(isEdit){belanjaData[editingBelanjaIndex]=row;showToast('Belanja diperbarui!')}
+    else{belanjaData.push(row);showToast(`Belanja disimpan: ${money(row.total)}`)}
+    resetBelanjaForm();
+    document.getElementById('belanja-date').value=date;
+    renderBelanja();updateDashboard();updateCharts();saveToLocalStorage();
+    if(isOnlineSession() && !isEdit){
+      const bid=onlineBranchId();
+      if(bid){
+        (async()=>{
+          try{
+            const cid=await cloudPushPurchase(row,bid);
+            if(cid){row.id=cid;saveGlobalsIntoActiveBranch();saveToLocalStorage();}
+            showToast('Belanja ikut ke cloud');
+          }catch(e){console.error(e);showToast('Lokal OK, cloud gagal: '+(e.message||e));}
+        })();
+      }
+    }
+}
+function editBelanja(i){
+    if(cabangNeedApproval("ubah belanja"))return;
+    if(i<0||i>=belanjaData.length)return showToast('Data belanja tidak ditemukan');
+    editingBelanjaIndex=i;
+    const b=belanjaData[i];
+    renderBahanDropdowns();
+    document.getElementById('belanja-date').value=b.date||'';
+    document.getElementById('belanja-barang').value=b.barang||'';
+    // jika option belum ada (barang dihapus dari master), tambahkan sementara
+    const sel=document.getElementById('belanja-barang');
+    if(b.barang&&sel.value!==b.barang){
+        const opt=document.createElement('option');
+        opt.value=b.barang;opt.textContent=b.barang;
+        sel.appendChild(opt);sel.value=b.barang;
+    }
+    document.getElementById('belanja-jumlah').value=b.jumlah??'';
+    document.getElementById('belanja-total').value=b.total??'';
+    document.getElementById('belanja-asal').value=b.asal||'Pusat';
+    document.getElementById('belanja-form-title').innerText='Edit Pencatatan Belanja';
+    document.getElementById('belanja-save-btn').innerText='Update';
+    document.getElementById('belanja-cancel-btn').classList.remove('hidden');
+    // scroll ke form supaya aksi edit terlihat
+    document.getElementById('belanja-form-title').scrollIntoView({behavior:'smooth',block:'center'});
+    showToast('Mode edit belanja — ubah data lalu Update');
+}
+function resetBelanjaForm(){editingBelanjaIndex=null;document.getElementById('belanja-form-title').innerText='Pencatatan Belanja';document.getElementById('belanja-save-btn').innerText='Simpan';document.getElementById('belanja-cancel-btn').classList.add('hidden');document.getElementById('belanja-jumlah').value='';document.getElementById('belanja-total').value=''}
+function deleteBelanja(i){
+    if(cabangNeedApproval("hapus belanja"))return;if(confirm('Hapus catatan belanja ini?')){belanjaData.splice(i,1);renderBelanja();updateDashboard();updateCharts();saveToLocalStorage();showToast('Belanja dihapus.')}}
+function renderBelanja(){
+    const rows=[...belanjaData.keys()].filter(i=>inPeriod(belanjaData[i].date,'belanja'));
+    document.getElementById('belanja-table-body').innerHTML=rows.length
+        ?rows.map(i=>{const b=belanjaData[i];return `<tr><td class="py-2 px-2">${b.date}</td><td class="py-2 px-2 font-semibold">${esc(b.barang)}</td><td class="py-2 px-2">${num(b.jumlah)}</td><td class="py-2 px-2 font-bold text-amber-600">${money(num(b.total))}</td><td class="py-2 px-2">${b.asal}</td><td class="text-center"><button onclick="editBelanja(${i})" class="text-amber-600 p-1">✎</button><button onclick="deleteBelanja(${i})" class="text-rose-600 p-1">×</button></td></tr>`}).join('')
+        :'<tr><td colspan="6" class="text-center py-4 text-stone-400">Tidak ada belanja di periode ini</td></tr>';
+}
+
+
+function getBahanMovements(barang){
+    const moves=[];
+    belanjaData.forEach(b=>{
+        if(b.barang!==barang)return;
+        moves.push({date:dateKey(b.date)||'', jenis:'Masuk', qty:num(b.jumlah), ket:(b.asal||'Belanja')+' · '+money(num(b.total)), sort:dateKey(b.date)+'-1'});
+    });
+    transaksiData.forEach(t=>{
+        const r=resepData.find(x=>x.name===t.name);
+        if(!r)return;
+        const q=num(r[barang])*num(t.qty);
+        if(q<=0)return;
+        moves.push({date:dateKey(t.date)||'', jenis:'Keluar', qty:-q, ket:'Jual '+t.name+' x'+t.qty, sort:dateKey(t.date)+'-2'});
+    });
+    opnameData.forEach(o=>{
+        if(o.barang!==barang)return;
+        const s=num(o.selisih);
+        moves.push({date:dateKey(o.date)||'', jenis:s>=0?'Opname+':'Opname−', qty:s, ket:'App '+o.apps+' → Real '+o.real, sort:dateKey(o.date)+'-3'});
+    });
+    moves.sort((a,b)=>(b.sort||'').localeCompare(a.sort||''));
+    return moves;
+}
+function showBahanHistory(barang){
+    const moves=getBahanMovements(barang);
+    const {inMap,outMap,adjMap}=getStockMaps('stok');
+    const sisa=num(inMap[barang])-num(outMap[barang])+num(adjMap[barang]);
+    const meta=getBahanMeta(barang);
+    document.getElementById('bahan-history-title').innerText='Riwayat: '+barang+(meta.unit?' ('+meta.unit+')':'');
+    document.getElementById('bahan-history-summary').innerHTML=
+        'Sisa saat ini (filter stok): <b class="'+(sisa<0?'text-rose-600':'text-stone-800')+'">'+sisa+'</b>'
+        +(meta.minStock>0?' · Min: '+meta.minStock:'')
+        +' · '+moves.length+' mutasi';
+    const body=document.getElementById('bahan-history-body');
+    body.innerHTML=moves.length?moves.map(m=>{
+        const cls=m.qty<0?'text-rose-600':m.qty>0?'text-emerald-600':'text-stone-600';
+        const sign=m.qty>0?'+':'';
+        return '<tr><td class="py-1.5 px-2 whitespace-nowrap">'+esc(m.date)+'</td>'
+            +'<td class="py-1.5 px-2">'+esc(m.jenis)+'</td>'
+            +'<td class="py-1.5 px-2 font-bold '+cls+'">'+sign+m.qty+'</td>'
+            +'<td class="py-1.5 px-2 text-stone-500">'+esc(m.ket)+'</td></tr>';
+    }).join(''):'<tr><td colspan="4" class="text-center py-4 text-stone-400">Belum ada mutasi</td></tr>';
+    const modal=document.getElementById('bahan-history-modal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+function closeBahanHistory(){
+    const modal=document.getElementById('bahan-history-modal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+}
+function getStockAlerts(){
+    const {inMap,outMap,adjMap}=getStockMaps('all');
+    const alerts=[];
+    bahanList.forEach(b=>{
+        const sisa=num(inMap[b])-num(outMap[b])+num(adjMap[b]);
+        const minS=num(getBahanMeta(b).minStock);
+        if(sisa<0)alerts.push({b,sisa,level:'minus',msg:'Stok minus'});
+        else if(sisa===0)alerts.push({b,sisa,level:'habis',msg:'Stok habis'});
+        else if(minS>0&&sisa<=minS)alerts.push({b,sisa,level:'menipis',msg:'Di bawah minimum ('+minS+')'});
+    });
+    // minus first, then habis, then menipis
+    const order={minus:0,habis:1,menipis:2};
+    alerts.sort((a,b)=>(order[a.level]-order[b.level])||a.b.localeCompare(b.b));
+    return alerts;
+}
+function renderStockAlerts(){
+    let box=document.getElementById('dash-stock-alerts');
+    if(!box){
+        const dash=document.getElementById('tab-dashboard');
+        if(!dash)return;
+        box=document.createElement('div');
+        box.id='dash-stock-alerts';
+        // insert after period strip / first grid of cards
+        const strip=dash.querySelector('.period-tab-strip');
+        if(strip&&strip.nextElementSibling)strip.after(box);
+        else dash.insertBefore(box, dash.firstChild);
+    }
+    const alerts=getStockAlerts();
+    if(!alerts.length){
+        box.innerHTML='<div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-[11px] text-emerald-800"><b>✓ Stok aman</b> — tidak ada bahan menipis/habis/minus.</div>';
+        return;
+    }
+    const nMinus=alerts.filter(a=>a.level==='minus').length;
+    const nHabis=alerts.filter(a=>a.level==='habis').length;
+    const nLow=alerts.filter(a=>a.level==='menipis').length;
+    box.innerHTML=`
+    <div class="bg-white border border-rose-200 rounded-xl p-3 space-y-2">
+      <div class="flex justify-between items-center">
+        <h3 class="font-bold text-xs text-rose-700"><i class="fa-solid fa-triangle-exclamation"></i> Peringatan Stok</h3>
+        <button type="button" onclick="switchTab('stok')" class="text-[10px] text-amber-700 font-semibold">Kelola →</button>
+      </div>
+      <p class="text-[10px] text-stone-500">${nMinus?nMinus+' minus':''}${nMinus&&(nHabis||nLow)?' · ':''}${nHabis?nHabis+' habis':''}${nHabis&&nLow?' · ':''}${nLow?nLow+' menipis':''}</p>
+      <ul class="space-y-1 max-h-36 overflow-y-auto">
+        ${alerts.slice(0,12).map(a=>{
+            const cls=a.level==='minus'?'text-rose-700 bg-rose-50':a.level==='habis'?'text-stone-700 bg-stone-100':'text-amber-800 bg-amber-50';
+            return '<li class="flex justify-between items-center text-[11px] px-2 py-1 rounded-lg '+cls+'">'
+                +'<button type="button" class="font-semibold text-left truncate" onclick="switchTab(\'stok\');setTimeout(function(){showBahanHistory(\''+String(a.b).replace(/'/g,"\\'")+'\')},200)">'+esc(a.b)+'</button>'
+                +'<span class="shrink-0 ml-2">'+a.sisa+' · '+a.msg+'</span></li>';
+        }).join('')}
+        ${alerts.length>12?'<li class="text-[10px] text-stone-400 text-center">+'+ (alerts.length-12)+' lainnya di tab Stok</li>':''}
+      </ul>
+    </div>`;
+}
+
+
+function renderStok(){
+    const {inMap,outMap,costMap,qtyMap,adjMap}=getStockMaps('stok');
+    const asOf=periodAsOfDate('stok');
+    const rows=bahanList.map(b=>{
+        const masuk=num(inMap[b]), keluar=num(outMap[b]), adj=num(adjMap[b]);
+        const sisa=masuk-keluar+adj;
+        const avg=num(qtyMap[b])>0?num(costMap[b])/num(qtyMap[b]):0;
+        const val=sisa>0?sisa*avg:0;
+        const meta=getBahanMeta(b);
+        const minS=num(meta.minStock);
+        let status='aman', statusCls='text-emerald-600 bg-emerald-50';
+        if(sisa<0){status='minus';statusCls='text-rose-700 bg-rose-100';}
+        else if(sisa===0){status='habis';statusCls='text-stone-600 bg-stone-100';}
+        else if(minS>0&&sisa<=minS){status='menipis';statusCls='text-amber-700 bg-amber-50';}
+        return {b,masuk,keluar,adj,sisa,avg,val,meta,minS,status,statusCls};
+    });
+    const nAll=rows.length, nLow=rows.filter(r=>r.status==='menipis').length, nZero=rows.filter(r=>r.status==='habis').length, nNeg=rows.filter(r=>r.status==='minus').length;
+    const totalVal=rows.reduce((s,r)=>s+r.val,0);
+    const cabangView=typeof isCabang==='function'&&isCabang();
+
+    // ringkasan + filter UI (layout beda pusat vs cabang)
+    let panel=document.getElementById('stok-mgmt-panel');
+    if(!panel){
+        const sec=document.getElementById('tab-stok');
+        const strip=sec&&sec.querySelector('.period-tab-strip');
+        panel=document.createElement('div');
+        panel.id='stok-mgmt-panel';
+        panel.className='space-y-2';
+        if(strip)strip.after(panel); else if(sec)sec.insertBefore(panel, sec.firstChild);
+    }
+    const cards=cabangView
+      ? `<div class="grid grid-cols-3 gap-2">
+        <div class="bg-white border border-stone-200 rounded-xl p-2.5 text-center"><p class="text-[10px] text-stone-400">Jenis</p><p class="text-sm font-bold">${nAll}</p></div>
+        <div class="bg-amber-50 border border-amber-200 rounded-xl p-2.5 text-center"><p class="text-[10px] text-amber-700">Menipis</p><p class="text-sm font-bold text-amber-800">${nLow}</p></div>
+        <div class="bg-rose-50 border border-rose-200 rounded-xl p-2.5 text-center"><p class="text-[10px] text-rose-600">Habis/Minus</p><p class="text-sm font-bold text-rose-700">${nZero+nNeg}</p></div>
+      </div>`
+      : `<div class="grid grid-cols-2 gap-2">
+        <div id="stok-nilai-card" class="bg-white border border-stone-200 rounded-xl p-2.5"><p class="text-[10px] text-stone-400">Nilai stok</p><p class="text-sm font-bold text-indigo-600">${money(totalVal)}</p></div>
+        <div class="bg-white border border-stone-200 rounded-xl p-2.5"><p class="text-[10px] text-stone-400">Jenis bahan</p><p class="text-sm font-bold">${nAll}</p></div>
+        <div class="bg-amber-50 border border-amber-200 rounded-xl p-2.5"><p class="text-[10px] text-amber-700">Menipis</p><p class="text-sm font-bold text-amber-800">${nLow}</p></div>
+        <div class="bg-rose-50 border border-rose-200 rounded-xl p-2.5"><p class="text-[10px] text-rose-600">Habis / Minus</p><p class="text-sm font-bold text-rose-700">${nZero+nNeg}</p></div>
+      </div>`;
+    panel.innerHTML=`
+    ${cards}
+    <div class="flex flex-wrap gap-1.5 items-center">
+        <input type="search" id="stok-search" placeholder="Cari bahan..." value="${esc(stokSearch)}" oninput="stokSearch=this.value;renderStok()" class="flex-1 min-w-[120px] bg-white border border-stone-200 rounded-lg px-2 py-1.5 text-xs">
+        <button type="button" onclick="stokFilter='all';renderStok()" class="px-2 py-1 rounded-lg text-[10px] font-semibold ${stokFilter==='all'?'bg-stone-800 text-white':'bg-stone-100 text-stone-600'}">Semua</button>
+        <button type="button" onclick="stokFilter='low';renderStok()" class="px-2 py-1 rounded-lg text-[10px] font-semibold ${stokFilter==='low'?'bg-amber-600 text-white':'bg-amber-50 text-amber-800'}">Menipis</button>
+        <button type="button" onclick="stokFilter='zero';renderStok()" class="px-2 py-1 rounded-lg text-[10px] font-semibold ${stokFilter==='zero'?'bg-stone-600 text-white':'bg-stone-100'}">Habis</button>
+        <button type="button" onclick="stokFilter='neg';renderStok()" class="px-2 py-1 rounded-lg text-[10px] font-semibold ${stokFilter==='neg'?'bg-rose-600 text-white':'bg-rose-50 text-rose-700'}">Minus</button>
+        ${cabangView?'':`<button type="button" onclick="openBahanModal()" id="stok-btn-kelola" class="ml-auto px-2.5 py-1.5 rounded-lg text-[10px] font-semibold bg-stone-800 text-white">Kelola Bahan</button>`}
+    </div>`;
+
+    let filtered=rows;
+    if(stokFilter==='low')filtered=rows.filter(r=>r.status==='menipis');
+    else if(stokFilter==='zero')filtered=rows.filter(r=>r.status==='habis');
+    else if(stokFilter==='neg')filtered=rows.filter(r=>r.status==='minus');
+    if(stokSearch.trim()){
+        const q=stokSearch.trim().toLowerCase();
+        filtered=filtered.filter(r=>r.b.toLowerCase().includes(q));
+    }
+
+    // judul + header tabel menyesuaikan role
+    const stokTitle=document.querySelector('#tab-stok h3.font-bold');
+    if(stokTitle && stokTitle.closest('.bg-white')?.querySelector('#stok-table-body')){
+      stokTitle.innerHTML=cabangView?'Stok Bahan &amp; Sisa':'Stok Bahan &amp; Sisa <span class="text-stone-400 font-normal">· Total Rupiah</span>';
+    }
+    const headRow=document.querySelector('#tab-stok thead tr');
+    if(headRow){
+      headRow.innerHTML=cabangView
+        ?'<th class="py-2 px-2">Barang</th><th class="py-2 px-2">In</th><th class="py-2 px-2">Out</th><th class="py-2 px-2">Sisa</th>'
+        :'<th class="py-2 px-2">Barang</th><th class="py-2 px-2">In</th><th class="py-2 px-2">Out</th><th class="py-2 px-2">Sisa</th><th class="py-2 px-2">Total Nilai (Rp)</th>';
+    }
+
+    const body=document.getElementById('stok-table-body');
+    if(body){
+        const colSpan=cabangView?4:5;
+        body.innerHTML=filtered.length?filtered.map(r=>{
+            const unit=r.meta.unit?`<span class="text-[9px] text-stone-400">${esc(r.meta.unit)}</span>`:'';
+            const nilaiCell=cabangView?'':`<td class="py-2.5 px-2 font-bold ${r.sisa<0?'text-rose-600':'text-amber-600'}">${money(r.val)}</td>`;
+            return `<tr class="${r.sisa<0?'bg-rose-50':r.status==='menipis'?'bg-amber-50/50':''} cursor-pointer active:bg-stone-100" onclick="showBahanHistory('${String(r.b).replace(/'/g,"\\'")}')" title="Ketuk untuk riwayat masuk/keluar">
+                <td class="py-2.5 px-2"><span class="font-bold">${esc(r.b)}</span> ${unit}<div class="text-[9px] mt-0.5"><span class="px-1.5 py-0.5 rounded ${r.statusCls}">${r.status}</span>${r.minS>0?` <span class="text-stone-400">min ${r.minS}</span>`:''}</div></td>
+                <td class="py-2.5 px-2 text-emerald-600 font-semibold">${r.masuk}</td>
+                <td class="py-2.5 px-2 text-rose-600 font-semibold">${r.keluar}</td>
+                <td class="py-2.5 px-2 font-bold ${r.sisa<0?'text-rose-700':'text-stone-900'}">${r.sisa}${r.sisa<0?' ⚠':''}</td>
+                ${nilaiCell}
+            </tr>`;
+        }).join(''):`<tr><td colspan="${colSpan}" class="text-center py-4 text-stone-400">Tidak ada bahan di filter ini</td></tr>`;
+    }
+    let note=document.getElementById('stok-period-note');
+    if(!note){
+        note=document.createElement('p');
+        note.id='stok-period-note';
+        note.className='text-[10px] text-stone-400 mt-1';
+        document.querySelector('#tab-stok .bg-white')?.appendChild(note);
+    }
+    if(note){
+      if(cabangView){
+        note.innerHTML=asOf
+          ?`Stok cabang · posisi s/d <b>${fmtDate(asOf)}</b>. Hanya qty (tanpa nilai Rupiah). Ketuk baris untuk riwayat.`
+          :`Stok cabang · qty saja (tanpa nilai Rupiah). Status: aman / menipis / habis / minus.`;
+      }else{
+        note.innerHTML=asOf?`Stok dihitung <b>posisi s/d ${fmtDate(asOf)}</b>. Status: aman / menipis (≤ min) / habis / minus.`:'Stok dari <b>seluruh data</b>. Atur <b>stok minimum</b> lewat Kelola Bahan.';
+      }
+    }
+}
+function currentAppStock(barang,excludeOpnameIndex=-1){
+    const inMap={},outMap={};
+    bahanList.forEach(b=>{inMap[b]=0;outMap[b]=0});
+    belanjaData.forEach(b=>{if(inMap[b.barang]!==undefined)inMap[b.barang]+=num(b.jumlah)});
+    transaksiData.forEach(t=>{const r=resepData.find(x=>x.name===t.name);if(r)bahanList.forEach(b=>{outMap[b]+=num(r[b])*num(t.qty)})});
+    let adj=0;
+    opnameData.forEach((o,i)=>{if(i!==excludeOpnameIndex&&o.barang===barang)adj+=num(o.selisih)});
+    return num(inMap[barang])-num(outMap[barang])+adj;
+}
+function opnameDuplicate(date,barang,exclude=-1){return opnameData.some((o,i)=>i!==exclude&&o.date===date&&o.barang===barang)}
+function saveOpname(){
+  const date=document.getElementById('opname-date').value,barang=document.getElementById('opname-barang').value,real=parseFloat(document.getElementById('opname-real').value);
+  if(!date||!barang||!Number.isFinite(real)||real<0)return showToast('Data opname tidak valid!');
+  if(opnameDuplicate(date,barang,editingOpnameIndex??-1))return showToast('Duplikasi opname terdeteksi: tanggal & barang sudah ada!');
+  const isEdit=editingOpnameIndex!==null;
+  const apps=currentAppStock(barang,editingOpnameIndex??-1);
+  const row={id:opnameData[editingOpnameIndex]?.id||uid(),date,barang,apps,real,selisih:real-apps};
+  if(isEdit){opnameData[editingOpnameIndex]=row;resetOpnameForm();showToast('Opname diperbarui — stok disesuaikan!')}
+  else{opnameData.push(row);showToast('Opname disimpan — stok disesuaikan!')}
+  renderOpname();renderStok();updateDashboard();updateCharts();saveToLocalStorage();
+  if(!isEdit && isOnlineSession()){
+    const bid=onlineBranchId();
+    if(bid){
+      (async()=>{
+        try{
+          const cid=await cloudPushOpname(row,bid);
+          if(cid){row.id=cid;saveGlobalsIntoActiveBranch();saveToLocalStorage();}
+          showToast('Opname ikut ke cloud');
+        }catch(e){console.error(e);showToast('Lokal OK, cloud gagal: '+(e.message||e));}
+      })();
+    }
+  }
+}
+function editOpname(i){
+    if(cabangNeedApproval("ubah opname"))return;editingOpnameIndex=i;const o=opnameData[i];document.getElementById('opname-date').value=o.date;document.getElementById('opname-barang').value=o.barang;document.getElementById('opname-real').value=o.real;document.getElementById('opname-form-title').innerText='Edit Stok Opname Fisik';document.getElementById('opname-save-btn').innerText='Update';document.getElementById('opname-cancel-btn').classList.remove('hidden')}
+function resetOpnameForm(){editingOpnameIndex=null;document.getElementById('opname-form-title').innerText='Stok Opname Fisik';document.getElementById('opname-save-btn').innerText='Simpan';document.getElementById('opname-cancel-btn').classList.add('hidden');document.getElementById('opname-real').value=''}
+function deleteOpname(i){
+    if(cabangNeedApproval("hapus opname"))return;if(confirm('Hapus data opname ini? Stok akan dihitung ulang tanpa koreksi ini.')){opnameData.splice(i,1);renderOpname();renderStok();updateDashboard();updateCharts();saveToLocalStorage();showToast('Opname dihapus — stok dihitung ulang.')}}
+function renderOpname(){
+    const rows=[...opnameData.keys()].filter(i=>inPeriod(opnameData[i].date,'opname'));
+    document.getElementById('opname-table-body').innerHTML=rows.length
+        ?rows.map(i=>{const o=opnameData[i];return `<tr><td class="py-2 px-2">${o.date}</td><td class="py-2 px-2 font-semibold">${esc(o.barang)}</td><td class="py-2 px-2">${o.apps} / <b>${o.real}</b></td><td class="py-2 px-2 font-semibold ${o.selisih<0?'text-rose-600':'text-emerald-600'}">${o.selisih}</td><td class="text-center"><button onclick="editOpname(${i})" class="text-amber-600 p-1">✎</button><button onclick="deleteOpname(${i})" class="text-rose-600 p-1">×</button></td></tr>`}).join('')
+        :'<tr><td colspan="5" class="text-center py-4 text-stone-400">Tidak ada opname di periode ini</td></tr>';
+    // Ringkasan stok loss per bahan (periode)
+    const loss={}, surplus={}, net={};
+    bahanList.forEach(b=>{loss[b]=0;surplus[b]=0;net[b]=0});
+    rows.forEach(i=>{
+        const o=opnameData[i], b=o.barang, s=num(o.selisih);
+        if(net[b]===undefined){loss[b]=0;surplus[b]=0;net[b]=0}
+        net[b]+=s;
+        if(s<0)loss[b]+=-s;
+        else if(s>0)surplus[b]+=s;
+    });
+    const body=document.getElementById('opname-loss-body');
+    if(body){
+        const names=[...new Set([...bahanList, ...Object.keys(net)])];
+        const has=names.some(b=>loss[b]>0||surplus[b]>0||net[b]!==0);
+        body.innerHTML=has
+            ?names.filter(b=>loss[b]>0||surplus[b]>0||net[b]!==0).map(b=>`<tr class="${loss[b]>0?'bg-rose-50':''}"><td class="py-2 px-2 font-semibold">${esc(b)}</td><td class="py-2 px-2 font-bold text-rose-600">${loss[b]?loss[b]:'-'}</td><td class="py-2 px-2 text-emerald-600">${surplus[b]?surplus[b]:'-'}</td><td class="py-2 px-2 font-semibold ${net[b]<0?'text-rose-600':net[b]>0?'text-emerald-600':'text-stone-500'}">${net[b]}</td></tr>`).join('')
+            :'<tr><td colspan="4" class="text-center py-3 text-stone-400">Belum ada selisih opname di periode ini</td></tr>';
+    }
+}
+
+function saveSetoran(){
+    if(typeof blockIfAllBranches==='function'&&blockIfAllBranches("mencatat setoran"))return;
+    const date=document.getElementById('setoran-date').value,nominal=parseFloat(document.getElementById('setoran-nominal').value);
+    if(!date||!Number.isFinite(nominal)||nominal<0)return showToast('Data setoran tidak valid!');
+    let newRow=null;
+    if(editingSetoranIndex!==null){
+      setoranData[editingSetoranIndex]={...setoranData[editingSetoranIndex],date,nominal};
+      resetSetoranForm();showToast('Setoran diperbarui!');
+    }else{
+      newRow={id:uid(),date,nominal};
+      setoranData.push(newRow);showToast('Setoran disimpan!');
+    }
+    renderSetoran();updateDashboard();updateCharts();saveToLocalStorage();
+    if(newRow && isOnlineSession()){
+      const bid=onlineBranchId();
+      if(bid){
+        (async()=>{
+          try{
+            const cid=await cloudPushDeposit(newRow,bid);
+            if(cid){newRow.id=cid;saveGlobalsIntoActiveBranch();saveToLocalStorage();}
+            showToast('Setoran ikut ke cloud');
+          }catch(e){console.error(e);showToast('Lokal OK, cloud gagal: '+(e.message||e));}
+        })();
+      }
+    }
+}
+function editSetoran(i){
+    if(cabangNeedApproval("ubah setoran"))return;editingSetoranIndex=i;const s=setoranData[i];document.getElementById('setoran-date').value=s.date;document.getElementById('setoran-nominal').value=s.nominal;document.getElementById('setoran-form-title').innerText='Edit Pencatatan Setoran';document.getElementById('setoran-save-btn').innerText='Update';document.getElementById('setoran-cancel-btn').classList.remove('hidden')}
+function resetSetoranForm(){editingSetoranIndex=null;document.getElementById('setoran-form-title').innerText='Pencatatan Setoran Uang';document.getElementById('setoran-save-btn').innerText='Setor';document.getElementById('setoran-cancel-btn').classList.add('hidden');document.getElementById('setoran-nominal').value=''}
+function deleteSetoran(i){
+    if(cabangNeedApproval("hapus setoran"))return;if(confirm('Hapus setoran ini?')){setoranData.splice(i,1);renderSetoran();updateDashboard();updateCharts();saveToLocalStorage();showToast('Setoran dihapus.')}}
+function renderSetoran(){
+    const rows=[...setoranData.keys()].filter(i=>inPeriod(setoranData[i].date,'setoran'));
+    document.getElementById('setoran-table-body').innerHTML=rows.length
+        ?rows.map(i=>{const s=setoranData[i];return `<tr><td class="py-2 px-2">${s.date}</td><td class="py-2 px-2 font-bold text-emerald-600">${money(s.nominal)}</td><td class="text-center"><button onclick="editSetoran(${i})" class="text-amber-600 p-1">✎</button><button onclick="deleteSetoran(${i})" class="text-rose-600 p-1">×</button></td></tr>`}).join('')
+        :'<tr><td colspan="3" class="text-center py-4 text-stone-400">Tidak ada setoran di periode ini</td></tr>';
+}
+
+function updateDashboard(){
+    const trx=filteredTransaksi(currentTabId==='dashboard'?'master':tabScope()), bel=filteredBelanja(currentTabId==='dashboard'?'master':tabScope()), set=filteredSetoran(currentTabId==='dashboard'?'master':tabScope());
+    // data sudah per cabang aktif
+    const rev=trx.reduce((s,t)=>s+num(t.total),0);
+    const bc=bel.filter(b=>b.asal==='Cabang').reduce((s,b)=>s+num(b.total),0);
+    const bp=bel.filter(b=>b.asal==='Pusat').reduce((s,b)=>s+num(b.total),0);
+    const belAll=bel.reduce((s,b)=>s+num(b.total),0);
+    const setor=set.reduce((s,x)=>s+num(x.nominal),0);
+    const awal=num(window.branchSaldoAwal);
+    // Cabang: (saldo awal + penjualan) - (belanja + setoran)
+    // Pusat: tetap tampilkan breakdown; saldo cabang aktif = formula yang sama
+    const saldo=(awal+rev)-(belAll+setor);
+    const aset=calculateStockData();
+    document.getElementById('dash-rev').innerText=money(rev);
+    const elBp=document.getElementById('dash-belanja-pusat'); if(elBp)elBp.innerText=money(bp);
+    const elBc=document.getElementById('dash-belanja-cabang'); if(elBc)elBc.innerText=money(isCabang()?belAll:bc);
+    document.getElementById('dash-setoran').innerText=money(setor);
+    document.getElementById('dash-saldo-cabang').innerText=money(saldo);
+    const elAset=document.getElementById('dash-aset-stok'); if(elAset)elAset.innerText=money(aset);
+    const elAwal=document.getElementById('dash-saldo-awal'); if(elAwal)elAwal.innerText=money(awal);
+    renderStockAlerts();
+}
+
+function initCharts(){
+    salesChartInstance=new Chart(document.getElementById('salesChart'),{
+        type:'bar',
+        data:{labels:[],datasets:[
+            {label:'Omzet',data:[],backgroundColor:'#d97706',borderRadius:3},
+            {label:'Laba est.',data:[],backgroundColor:'#059669',borderRadius:3}
+        ]},
+        options:{
+            responsive:true,maintainAspectRatio:false,
+            plugins:{legend:{position:'bottom',labels:{boxWidth:10,font:{size:10}}}},
+            scales:{y:{beginAtZero:true,ticks:{callback:v=>v>=1e6?(v/1e6).toFixed(1)+'jt':v>=1e3?(v/1e3).toFixed(0)+'k':v}},x:{grid:{display:false},ticks:{font:{size:9},maxRotation:45}}}
+        }
+    });
+    trendChartInstance=new Chart(document.getElementById('trendChart'),{
+        type:'line',
+        data:{labels:[],datasets:[{label:'Omzet',data:[],borderColor:'#d97706',backgroundColor:'rgba(217,119,6,.12)',fill:true,tension:.3}]},
+        options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{callback:v=>v>=1e6?(v/1e6).toFixed(1)+'jt':v>=1e3?(v/1e3).toFixed(0)+'k':v}},x:{grid:{display:false},ticks:{font:{size:9}}}}}
+    });
+    assetChartInstance=new Chart(document.getElementById('assetChart'),{
+        type:'doughnut',
+        data:{labels:['Saldo Kas Cabang','Nilai Aset Stok','Total Setoran'],datasets:[{data:[0,0,0],backgroundColor:['#d97706','#6366f1','#059669'],borderWidth:2}]},
+        options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:10,font:{size:10}}}}}
+    });
+    updateCharts();
+}
+function updateCharts(){
+    if(!salesChartInstance||!trendChartInstance||!assetChartInstance)return;
+    const trx=filteredTransaksi(), bel=filteredBelanja(), set=filteredSetoran();
+    const avg=getAvgCostMapPeriod();
+    // Per menu: omzet + laba est.
+    const omzet={}, laba={}, qty={};
+    menuHarga.forEach(m=>{omzet[m.name]=0;laba[m.name]=0;qty[m.name]=0});
+    trx.forEach(t=>{
+        const name=t.name;
+        if(omzet[name]===undefined){omzet[name]=0;laba[name]=0;qty[name]=0}
+        omzet[name]+=num(t.total);
+        const cogs=calcTrxCOGS(t);
+        // hanya hitung laba jika semua bahan punya harga
+        if(cogs!==null)laba[name]+=num(t.total)-cogs;
+        qty[name]+=num(t.qty);
+    });
+    const labels=Object.keys(omzet);
+    salesChartInstance.data.labels=labels;
+    salesChartInstance.data.datasets[0].data=labels.map(n=>omzet[n]);
+    salesChartInstance.data.datasets[1].data=labels.map(n=>laba[n]);
+    const chartTitle=document.querySelector('#salesChart')?.closest('.bg-white')?.querySelector('h3');
+    if(typeof isCabang==='function'&&isCabang()){
+        if(chartTitle)chartTitle.innerText='Penjualan Menu';
+        salesChartInstance.data.datasets=(salesChartInstance.data.datasets||[]).filter(d=>d.label!=='Laba est.');
+        if(salesChartInstance.data.datasets.length===1) salesChartInstance.data.datasets[0].label='Penjualan';
+    } else {
+        // pastikan 2 dataset pusat
+        if(salesChartInstance.data.datasets.length===1 && salesChartInstance.data.datasets[0].label==='Penjualan'){
+            salesChartInstance.data.datasets[0].label='Omzet';
+        }
+    }
+    salesChartInstance.update('none');
+    // Omzet harian
+    const byDate={};
+    trx.forEach(t=>{if(t.date)byDate[t.date]=(byDate[t.date]||0)+num(t.total)});
+    const dates=Object.keys(byDate).sort();
+    trendChartInstance.data.labels=dates;
+    trendChartInstance.data.datasets[0].data=dates.map(d=>byDate[d]);
+    trendChartInstance.update('none');
+    // Komposisi aset
+    const rev=trx.reduce((s,t)=>s+num(t.total),0);
+    const bc=bel.filter(b=>b.asal==='Cabang').reduce((s,b)=>s+num(b.total),0);
+    const setor=set.reduce((s,x)=>s+num(x.nominal),0);
+    const saldo=Math.max(0,rev-bc-setor);
+    const aset=calculateStockData();
+    assetChartInstance.data.datasets[0].data=[saldo,aset,setor];
+    assetChartInstance.update('none');
+}
+
+function renderAll(){renderHarga();renderResep();renderBahanDropdowns();renderPOSMenu();renderCart();renderBelanja();renderTransactions();renderOpname();renderSetoran();renderStok();updateDashboard();updateCharts();saveToLocalStorage()}
+function switchTab(tab){
+    currentTabId=tab;
+    ['dashboard','pos','harga','resep','belanja','stok','opname','setoran'].forEach(t=>{
+        const el=document.getElementById('tab-'+t); if(el)el.classList.add('hidden');
+        const n=document.getElementById('nav-'+t);
+        if(n)n.className='flex flex-col items-center py-1 px-2 hover:text-white text-stone-400';
+    });
+    const pane=document.getElementById('tab-'+tab); if(pane)pane.classList.remove('hidden');
+    const nav=document.getElementById('nav-'+tab);
+    if(nav)nav.className='flex flex-col items-center text-amber-500 font-semibold py-1 px-2';
+    document.getElementById('header-title').innerText={dashboard:'Dashboard (v3.0.0-online)',pos:'Kasir POS',harga:'Daftar Harga',resep:'Tabel Resep',belanja:'Pencatatan Belanja',stok:'Stok Barang',opname:'Stok Opname',setoran:'Setoran Uang'}[tab]||'KOPI GENGGAM';
+    updatePeriodUI();
+    if(tab==='dashboard'){updateDashboard();updateCharts()}
+    if(tab==='stok')renderStok();
+    if(tab==='pos')renderPOSMenu();
+}
+
+function downloadBlob(filename, blob){
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url; a.download=filename;
+    a.style.display='none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>{URL.revokeObjectURL(url);a.remove()},1500);
+}
+function slugName(s){
+    return String(s||'x').replace(/[^a-zA-Z0-9]+/g,'_').replace(/^_|_$/g,'').slice(0,40)||'x';
+}
+function getBranchLabelForFile(){
+    if(typeof isCabang==='function'&&isCabang())return (session.branchId||'cabang')+'_'+slugName(session.branchName);
+    if(typeof isAllBranches==='function'&&isAllBranches())return 'SEMUA_CABANG';
+    const b=(typeof DEMO_BRANCHES!=='undefined'?DEMO_BRANCHES:[]).find(x=>x.id===activeBranchId);
+    return (activeBranchId||'cabang')+'_'+slugName(b?b.name:activeBranchId);
+}
+function getAllDataPayload(full){
+    if(typeof saveGlobalsIntoActiveBranch==='function')saveGlobalsIntoActiveBranch();
+    const stamp=new Date().toISOString();
+    if(full || (typeof isAllBranches==='function'&&isAllBranches())){
+      return {version:APP_VERSION,exportedAt:stamp,scope:'all',menuHarga,bahanList,bahanMeta,resepData,branchStore,demoBranches:DEMO_BRANCHES,activeBranchId};
+    }
+    const id=activeBranchId;
+    const live={belanjaData:belanjaData||[],transaksiData:transaksiData||[],opnameData:opnameData||[],setoranData:setoranData||[],saldoAwal:num(window.branchSaldoAwal)};
+    return {version:APP_VERSION,exportedAt:stamp,scope:'branch',branchId:id,branchName:(DEMO_BRANCHES.find(b=>b.id===id)||{}).name||id,menuHarga,bahanList,bahanMeta,resepData,branchData:live};
+}
+
+function exportToExcel(){
+    try{
+        backupSnapshot('excel-export');
+        const stamp=new Date().toISOString().replace(/[:.]/g,'-');
+        const branchTag=getBranchLabelForFile();
+        const payload=getAllDataPayload();
+        const jsonBlob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+        downloadBlob(`Kopi_Genggam_${branchTag}_v${APP_VERSION}_${stamp}.json`, jsonBlob);
+        // 2) Excel jika library tersedia
+        if(typeof XLSX!=='undefined'){
+            const wb=XLSX.utils.book_new();
+            [['MenuHarga',menuHarga],['DaftarBahan',bahanList.map(NamaBahan=>({NamaBahan}))],['Resep',resepData],['Belanja',belanjaData],['Transaksi',transaksiData],['Opname',opnameData],['Setoran',setoranData]].forEach(([n,d])=>XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(Array.isArray(d)?d:[]),n));
+            try{
+                const wbout=XLSX.write(wb,{bookType:'xlsx',type:'array'});
+                downloadBlob(`Kopi_Genggam_${branchTag}_v${APP_VERSION}_${stamp}.xlsx`, new Blob([wbout],{type:'application/octet-stream'}));
+            }catch(ex){
+                // fallback writeFile
+                try{XLSX.writeFile(wb,`Kopi_Genggam_${branchTag}_v${APP_VERSION}_${stamp}.xlsx`)}catch(e2){console.warn(e2)}
+            }
+            showToast('Backup '+branchTag+' diunduh');
+        }else{
+            showToast('Backup '+branchTag+' (JSON) diunduh');
+        }
+    }catch(e){
+        console.error(e);
+        showToast('Gagal export: '+(e.message||e));
+    }
+}
+function applyImportedPayload(data){
+    if(!data||typeof data!=='object')throw new Error('Data kosong');
+    if(data.data&&typeof data.data==='object'&&!data.branchData&&!data.branchStore){applyImportedPayload(data.data);return;}
+    if(data.scope==='all'||data.branchStore){
+      if(Array.isArray(data.menuHarga))menuHarga=data.menuHarga;
+      if(Array.isArray(data.bahanList))bahanList=data.bahanList;
+      if(data.bahanMeta&&typeof data.bahanMeta==='object')bahanMeta=data.bahanMeta;
+      if(Array.isArray(data.resepData))resepData=data.resepData;
+      if(data.branchStore&&typeof data.branchStore==='object')branchStore=data.branchStore;
+      if(Array.isArray(data.demoBranches)&&data.demoBranches.length){DEMO_BRANCHES.length=0;data.demoBranches.forEach(b=>DEMO_BRANCHES.push(b));}
+      DEMO_BRANCHES.forEach(b=>ensureBranchPack(b.id));
+      if(data.activeBranchId)activeBranchId=data.activeBranchId;
+      loadActiveBranchIntoGlobals();
+      if(typeof refreshBranchSelect==='function')refreshBranchSelect();
+      return;
+    }
+    if(data.scope==='branch'||data.branchData){
+      const pack=data.branchData||{belanjaData:data.belanjaData||[],transaksiData:data.transaksiData||[],opnameData:data.opnameData||[],setoranData:data.setoranData||[],saldoAwal:data.saldoAwal||0};
+      if(Array.isArray(data.menuHarga))menuHarga=data.menuHarga;
+      if(Array.isArray(data.bahanList))bahanList=data.bahanList;
+      if(data.bahanMeta&&typeof data.bahanMeta==='object')bahanMeta=data.bahanMeta;
+      if(Array.isArray(data.resepData))resepData=data.resepData;
+      let targetId=activeBranchId;
+      if(typeof isCabang==='function'&&isCabang())targetId=session.branchId;
+      else if(activeBranchId==='ALL'&&data.branchId)targetId=data.branchId;
+      else if(activeBranchId&&activeBranchId!=='ALL')targetId=activeBranchId;
+      else if(data.branchId)targetId=data.branchId;
+      if(!targetId||targetId==='ALL')throw new Error('Pilih satu cabang aktif sebelum import data cabang');
+      branchStore[targetId]={belanjaData:pack.belanjaData||[],transaksiData:pack.transaksiData||[],opnameData:pack.opnameData||[],setoranData:pack.setoranData||[],saldoAwal:num(pack.saldoAwal)};
+      activeBranchId=targetId;
+      loadActiveBranchIntoGlobals();
+      return;
+    }
+    if(data.menuHarga||data.bahanList||data.resepData||data.belanjaData||data.transaksiData){
+      if(Array.isArray(data.menuHarga))menuHarga=data.menuHarga;
+      if(Array.isArray(data.bahanList))bahanList=data.bahanList;
+      if(data.bahanMeta&&typeof data.bahanMeta==='object')bahanMeta=data.bahanMeta;
+      if(Array.isArray(data.resepData))resepData=data.resepData;
+      if(Array.isArray(data.belanjaData))belanjaData=data.belanjaData;
+      if(Array.isArray(data.transaksiData))transaksiData=data.transaksiData;
+      if(Array.isArray(data.opnameData))opnameData=data.opnameData;
+      if(Array.isArray(data.setoranData))setoranData=data.setoranData;
+      if(typeof saveGlobalsIntoActiveBranch==='function')saveGlobalsIntoActiveBranch();
+      return;
+    }
+    throw new Error('Struktur backup tidak dikenali');
+}
+function importFromExcel(e){
+    const file=e.target.files[0];if(!file)return;
+    if(!confirm('Import akan MENGGANTI data saat ini.\\nData lama di-backup otomatis.\\n\\nLanjutkan?')){e.target.value='';return}
+    const name=(file.name||'').toLowerCase();
+    const reader=new FileReader();
+    reader.onerror=()=>{showToast('Gagal membaca file');e.target.value=''};
+    reader.onload=x=>{
+        try{
+            backupSnapshot('before-import');
+            const result=x.target.result;
+            if(name.endsWith('.json')||(typeof result==='string'&&result.trim().startsWith('{'))){
+                const text=typeof result==='string'?result:new TextDecoder().decode(result);
+                const data=JSON.parse(text);
+                applyImportedPayload(data);
+            }else{
+                if(typeof XLSX==='undefined')throw new Error('Library Excel belum termuat. Pakai file .json');
+                const wb=XLSX.read(new Uint8Array(result),{type:'array',cellDates:true});
+                const sheetToJson=n=>{
+                    if(!wb.Sheets[n])return null;
+                    return XLSX.utils.sheet_to_json(wb.Sheets[n],{raw:false,defval:''});
+                };
+                const toISODate=v=>{
+                    if(v==null||v==='')return '';
+                    if(typeof v==='number'&&Number.isFinite(v)){
+                        try{
+                            if(XLSX.SSF&&XLSX.SSF.parse_date_code){
+                                const d=XLSX.SSF.parse_date_code(v);
+                                if(d)return `${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`;
+                            }
+                        }catch(_){}
+                        const epoch=new Date(Date.UTC(1899,11,30)+v*86400000);
+                        return epoch.toISOString().split('T')[0];
+                    }
+                    const s=String(v).trim();
+                    if(/^\d{4}-\d{2}-\d{2}/.test(s))return s.slice(0,10);
+                    const p=new Date(s);if(!isNaN(p.getTime())){
+                        // local date
+                        const y=p.getFullYear(),m=String(p.getMonth()+1).padStart(2,'0'),d=String(p.getDate()).padStart(2,'0');
+                        return `${y}-${m}-${d}`;
+                    }
+                    return s;
+                };
+                const mh=sheetToJson('MenuHarga');
+                if(mh)menuHarga=mh.map(r=>({
+                    name:String(r.name||r.Name||'').trim(),
+                    price:num(r.price||r.Price),
+                    point:num(r.point||r.Point),
+                    effectiveDate:toISODate(r.effectiveDate||r.Berlaku||'')||undefined
+                })).filter(r=>r.name);
+                const db=sheetToJson('DaftarBahan');
+                if(db)bahanList=db.map(x=>x.NamaBahan||x.name||Object.values(x)[0]).filter(Boolean).map(String);
+                const rs=sheetToJson('Resep');if(rs)resepData=rs;
+                const bj=sheetToJson('Belanja');
+                if(bj)belanjaData=bj.map(r=>({...r,date:toISODate(r.date||r.Date),jumlah:num(r.jumlah||r.Jumlah),total:num(r.total||r.Total),barang:String(r.barang||r.Barang||''),asal:String(r.asal||r.Asal||'Pusat')}));
+                const tr=sheetToJson('Transaksi');
+                if(tr)transaksiData=tr.map(r=>({...r,date:toISODate(r.date||r.Date),name:String(r.name||r.Name||''),qty:num(r.qty||r.Qty),total:num(r.total||r.Total)}));
+                const op=sheetToJson('Opname');
+                if(op)opnameData=op.map(r=>({...r,date:toISODate(r.date||r.Date),barang:String(r.barang||r.Barang||''),apps:num(r.apps),real:num(r.real),selisih:num(r.selisih)}));
+                const st=sheetToJson('Setoran');
+                if(st)setoranData=st.map(r=>({...r,date:toISODate(r.date||r.Date),nominal:num(r.nominal||r.Nominal)}));
+            }
+            normalizeData();
+            saveToLocalStorage();
+            renderAll();
+            showToast('Import berhasil!');
+        }catch(err){
+            console.error(err);
+            showToast('Import gagal: '+(err.message||err));
+        }finally{e.target.value=''}
+    };
+    if(name.endsWith('.json'))reader.readAsText(file);
+    else reader.readAsArrayBuffer(file);
+}
+
+
+function renderBahanModalList(){
+    const box=document.getElementById('bahan-list-box');
+    if(!box)return;
+    if(!bahanList.length){box.innerHTML='<p class="text-[10px] text-stone-400 text-center py-2">Belum ada barang</p>';return;}
+    box.innerHTML=bahanList.map((b,i)=>{
+        const meta=getBahanMeta(b);
+        const sub=[meta.unit, meta.minStock>0?'min '+meta.minStock:''].filter(Boolean).join(' · ');
+        return `<div class="flex items-center justify-between gap-1 bg-stone-50 rounded-lg px-2 py-1.5 text-[11px] border border-stone-100">
+        <span class="min-w-0"><span class="font-semibold truncate block">${esc(b)}</span>${sub?`<span class="text-[9px] text-stone-400">${esc(sub)}</span>`:''}</span>
+        <span class="flex items-center shrink-0">
+            <button type="button" onclick="startEditBahan(${i})" class="text-amber-600 p-1" title="Edit">✎</button>
+            <button type="button" onclick="deleteBahan(${i})" class="text-rose-600 p-1" title="Hapus">×</button>
+        </span></div>`;
+    }).join('');
+}
+
+function getBahanMeta(name){
+    if(!bahanMeta[name])bahanMeta[name]={unit:'',minStock:0};
+    return bahanMeta[name];
+}
+function setBahanMeta(name, unit, minStock){
+    bahanMeta[name]={unit:(unit||'').trim(), minStock:Math.max(0,num(minStock))};
+}
+function renameBahanMeta(oldName, newName){
+    if(oldName===newName)return;
+    if(bahanMeta[oldName]){bahanMeta[newName]=bahanMeta[oldName];delete bahanMeta[oldName];}
+}
+
+function openBahanModal(){
+    document.getElementById('modal-bahan-edit-old').value='';
+    document.getElementById('modal-bahan-name').value='';
+    const u=document.getElementById('modal-bahan-unit');if(u)u.value='';
+    const mn=document.getElementById('modal-bahan-min');if(mn)mn.value='';
+    document.getElementById('modal-bahan-title').innerText='Kelola Nama Barang';
+    document.getElementById('modal-bahan-save-btn').innerText='Tambah';
+    document.getElementById('modal-bahan-hint').innerText='Tambah barang baru atau ketuk ✎ untuk ubah nama (belanja, resep, opname ikut berubah).';
+    renderBahanModalList();
+    document.getElementById('bahan-modal').classList.remove('hidden');
+    document.getElementById('bahan-modal').classList.add('flex');
+}
+function closeBahanModal(){
+    document.getElementById('bahan-modal').classList.add('hidden');
+    document.getElementById('bahan-modal').classList.remove('flex');
+    document.getElementById('modal-bahan-edit-old').value='';
+    document.getElementById('modal-bahan-name').value='';
+    const u=document.getElementById('modal-bahan-unit');if(u)u.value='';
+    const mn=document.getElementById('modal-bahan-min');if(mn)mn.value='';
+}
+function startEditBahan(i){
+    const old=bahanList[i];
+    const meta=getBahanMeta(old);
+    document.getElementById('modal-bahan-edit-old').value=old;
+    document.getElementById('modal-bahan-name').value=old;
+    const u=document.getElementById('modal-bahan-unit');if(u)u.value=meta.unit||'';
+    const mn=document.getElementById('modal-bahan-min');if(mn)mn.value=meta.minStock||'';
+    document.getElementById('modal-bahan-title').innerText='Edit Barang / Stok';
+    document.getElementById('modal-bahan-save-btn').innerText='Simpan';
+    document.getElementById('modal-bahan-hint').innerText='Ubah nama, satuan, atau stok minimum. Nama baru diterapkan ke belanja, resep, opname.';
+    document.getElementById('modal-bahan-name').focus();
+}
+function renameBahanCascade(oldName, newName){
+    const idx=bahanList.indexOf(oldName);
+    if(idx<0)return false;
+    bahanList[idx]=newName;
+    resepData.forEach(r=>{
+        if(Object.prototype.hasOwnProperty.call(r, oldName)){
+            r[newName]=r[oldName];
+            delete r[oldName];
+        }else if(r[newName]===undefined)r[newName]=0;
+    });
+    belanjaData.forEach(b=>{if(b.barang===oldName)b.barang=newName});
+    opnameData.forEach(o=>{if(o.barang===oldName)o.barang=newName});
+    return true;
+}
+function saveBahanModal(){
+    const name=document.getElementById('modal-bahan-name').value.trim();
+    const old=document.getElementById('modal-bahan-edit-old').value;
+    const unit=(document.getElementById('modal-bahan-unit')?.value||'').trim();
+    const minStock=num(document.getElementById('modal-bahan-min')?.value);
+    if(!name)return showToast('Nama barang kosong!');
+    if(old){
+        if(name!==old && bahanList.some(b=>b.toLowerCase()===name.toLowerCase()))return showToast('Nama barang sudah dipakai!');
+        if(name!==old){
+            backupSnapshot('before-rename-bahan');
+            renameBahanCascade(old, name);
+        }
+        setBahanMeta(name, unit, minStock);
+        closeBahanModal();
+        renderAll();
+        showToast(name!==old?'Barang diperbarui (termasuk stok min)':'Stok min / satuan disimpan');
+        return;
+    }
+    if(bahanList.some(b=>b.toLowerCase()===name.toLowerCase()))return showToast('Barang sudah ada!');
+    bahanList.push(name);
+    setBahanMeta(name, unit, minStock);
+    resepData.forEach(r=>{if(r[name]===undefined)r[name]=0});
+    closeBahanModal();
+    renderAll();
+    showToast('Barang ditambahkan!');
+}
+function deleteBahan(i){
+    const name=bahanList[i];
+    const usedBelanja=belanjaData.some(b=>b.barang===name);
+    const usedOpname=opnameData.some(o=>o.barang===name);
+    const usedResep=resepData.some(r=>num(r[name])>0);
+    let msg=`Hapus barang "${name}"?`;
+    if(usedBelanja||usedOpname||usedResep)msg+='\n\nBarang ini masih dipakai di data lain. Tetap hapus dari daftar master? (riwayat belanja/opname tetap ada)';
+    if(!confirm(msg))return;
+    backupSnapshot('before-delete-bahan');
+    bahanList.splice(i,1);
+    delete bahanMeta[name];
+    resepData.forEach(r=>{delete r[name]});
+    renderBahanModalList();
+    renderAll();
+    showToast('Barang dihapus dari master');
+}
+// kompatibilitas tombol lama
+function saveNewBahan(){saveBahanModal()}
+
+function installPWA(){if(deferredPrompt){deferredPrompt.prompt();deferredPrompt.userChoice.then(r=>{if(r.outcome==='accepted')showToast('Aplikasi berhasil diinstall!');deferredPrompt=null})}else showToast('Aplikasi sudah terinstall atau browser belum mendukung.')}
+function dismissPwaBanner(){document.getElementById('pwa-install-banner').classList.add('hidden')}
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;document.getElementById('install-btn').classList.remove('hidden');document.getElementById('pwa-install-banner').classList.remove('hidden')});
+
+
+/* ===== DEMO MULTI-CABANG ===== */
+const DEMO_BRANCHES=[{id:'CBN-01',name:'Cabang 1'},{id:'CBN-02',name:'Cabang 2'},{id:'CBN-03',name:'Cabang 3'},{id:'CBN-04',name:'Cabang 4'}];
+const SESSION_KEY='kopi_genggam_demo_session';
+let session={role:null,branchId:null,branchName:null};
+let branchStore={};
+let activeBranchId=null;
+function emptyBranchPack(){return {belanjaData:[],transaksiData:[],opnameData:[],setoranData:[],saldoAwal:0}}
+function isAllBranches(){return activeBranchId==='ALL'}
+
+
+function renderLoginBranchButtons(){
+  const box=document.getElementById('login-branch-btns');
+  if(!box)return;
+  if(!DEMO_BRANCHES.length){
+    box.innerHTML='<p class="text-[10px] text-stone-500 col-span-2 text-center">Belum ada cabang</p>';
+    return;
+  }
+  box.innerHTML=DEMO_BRANCHES.map(b=>
+    '<button type="button" onclick="demoLogin(\'cabang\',\''+b.id+'\')" class="bg-stone-800/90 hover:bg-stone-700 border border-stone-600/80 text-stone-100 py-2.5 rounded-xl text-[11px] font-semibold">'+esc(b.name)+'</button>'
+  ).join('');
+}
+
+function refreshBranchSelect(){
+  renderLoginBranchButtons();
+  const sel=document.getElementById('pusat-branch-select');
+  if(!sel)return;
+  const cur=activeBranchId||'ALL';
+  sel.innerHTML='<option value="ALL">Semua Cabang</option>'+
+    DEMO_BRANCHES.map(b=>'<option value="'+b.id+'">'+esc(b.name)+'</option>').join('');
+  if([...sel.options].some(o=>o.value===cur)) sel.value=cur;
+  else { sel.value='ALL'; if(activeBranchId!=='ALL') setActiveBranch('ALL', true); }
+}
+function resetActiveBranchData(){
+  if(!isPusat())return showToast('Hanya pusat');
+  if(isAllBranches())return showToast('Pilih satu cabang dulu, bukan Semua Cabang');
+  const b=DEMO_BRANCHES.find(x=>x.id===activeBranchId);
+  const name=b?b.name:activeBranchId;
+  if(!confirm('Reset SEMUA data operasional cabang "'+name+'"?\n\nYang dihapus: transaksi, belanja, opname, setoran, saldo awal.\nMaster harga/resep/bahan TIDAK dihapus.'))return;
+  saveGlobalsIntoActiveBranch(); // noop-ish
+  branchStore[activeBranchId]=emptyBranchPack();
+  loadActiveBranchIntoGlobals();
+  const sa=document.getElementById('input-saldo-awal'); if(sa)sa.value='';
+  saveToLocalStorage();
+  renderAll();
+  showToast('Data cabang "'+name+'" sudah direset');
+}
+function addDemoBranch(){
+  if(!isPusat())return showToast('Hanya pusat');
+  const name=prompt('Nama cabang baru:','Cabang '+(DEMO_BRANCHES.length+1));
+  if(name===null)return;
+  const nm=(name||'').trim();
+  if(!nm)return showToast('Nama kosong');
+  if(DEMO_BRANCHES.some(b=>b.name.toLowerCase()===nm.toLowerCase()))return showToast('Nama cabang sudah ada');
+  let n=DEMO_BRANCHES.length+1;
+  let id='CBN-'+String(n).padStart(2,'0');
+  while(DEMO_BRANCHES.some(b=>b.id===id)||branchStore[id]){n++;id='CBN-'+String(n).padStart(2,'0');}
+  DEMO_BRANCHES.push({id,name:nm});
+  ensureBranchPack(id);
+  refreshBranchSelect();
+  saveToLocalStorage();
+  setActiveBranch(id);
+  showToast('Cabang ditambahkan: '+nm);
+}
+function deleteActiveBranch(){
+  if(!isPusat())return showToast('Hanya pusat');
+  if(isAllBranches())return showToast('Pilih satu cabang yang akan dihapus');
+  if(DEMO_BRANCHES.length<=1)return showToast('Minimal harus ada 1 cabang');
+  const b=DEMO_BRANCHES.find(x=>x.id===activeBranchId);
+  const name=b?b.name:activeBranchId;
+  if(!confirm('Hapus cabang "'+name+'" beserta seluruh datanya?\n\nTindakan ini tidak bisa dibatalkan (kecuali ada backup).'))return;
+  const id=activeBranchId;
+  const idx=DEMO_BRANCHES.findIndex(x=>x.id===id);
+  if(idx>=0)DEMO_BRANCHES.splice(idx,1);
+  delete branchStore[id];
+  activeBranchId=DEMO_BRANCHES[0].id;
+  session.branchId=activeBranchId;
+  session.branchName=DEMO_BRANCHES[0].name;
+  loadActiveBranchIntoGlobals();
+  refreshBranchSelect();
+  try{localStorage.setItem(SESSION_KEY,JSON.stringify(session))}catch(e){}
+  saveToLocalStorage();
+  renderAll();
+  applyRoleUI();
+  showToast('Cabang "'+name+'" dihapus');
+}
+
+function ensureBranchPack(id){if(!branchStore[id])branchStore[id]=emptyBranchPack();return branchStore[id]}
+function isPusat(){return session.role==='pusat'}
+function isCabang(){return session.role==='cabang'}
+
+function cabangNeedApproval(action){
+  if(typeof isCabang==='function'&&isCabang()){
+    showToast('Cabang tidak dapat '+action+' langsung. Minta persetujuan pusat.');
+    return true;
+  }
+  return false;
+}
+function blockIfAllBranches(action){
+  if(typeof isAllBranches==='function'&&isAllBranches()){
+    showToast('Mode Semua Cabang: hanya lihat. Pilih satu cabang untuk '+action+'.');
+    return true;
+  }
+  return false;
+}
+
+function loadActiveBranchIntoGlobals(){
+  if(!activeBranchId)return;
+  if(activeBranchId==='ALL'){
+    // Gabungan semua cabang (view-only untuk input operasional)
+    let bel=[],trx=[],opn=[],set=[],awal=0;
+    DEMO_BRANCHES.forEach(b=>{
+      const p=ensureBranchPack(b.id);
+      const tag=b.name;
+      (p.belanjaData||[]).forEach(x=>bel.push({...x,_branchId:b.id,_branchName:tag}));
+      (p.transaksiData||[]).forEach(x=>trx.push({...x,_branchId:b.id,_branchName:tag}));
+      (p.opnameData||[]).forEach(x=>opn.push({...x,_branchId:b.id,_branchName:tag}));
+      (p.setoranData||[]).forEach(x=>set.push({...x,_branchId:b.id,_branchName:tag}));
+      awal+=num(p.saldoAwal);
+    });
+    belanjaData=bel; transaksiData=trx; opnameData=opn; setoranData=set;
+    window.branchSaldoAwal=awal;
+    return;
+  }
+  const p=ensureBranchPack(activeBranchId);
+  belanjaData=p.belanjaData||[];transaksiData=p.transaksiData||[];opnameData=p.opnameData||[];setoranData=p.setoranData||[];
+  window.branchSaldoAwal=num(p.saldoAwal);
+}
+function saveGlobalsIntoActiveBranch(){
+  if(!activeBranchId||activeBranchId==='ALL')return; // mode semua: jangan tulis balik gabungan
+  branchStore[activeBranchId]={
+    belanjaData:belanjaData||[],
+    transaksiData:transaksiData||[],
+    opnameData:opnameData||[],
+    setoranData:setoranData||[],
+    saldoAwal:num(window.branchSaldoAwal)
+  };
+}
+function setBranchSaldoAwal(v){
+  window.branchSaldoAwal=num(v);
+  saveGlobalsIntoActiveBranch();
+  saveToLocalStorage();
+  updateDashboard();
+  showToast('Saldo awal cabang disimpan: '+money(window.branchSaldoAwal));
+}
+function setActiveBranch(branchId,skipRender){
+  if(activeBranchId&&activeBranchId!==branchId)saveGlobalsIntoActiveBranch();
+  activeBranchId=branchId;
+  const b=DEMO_BRANCHES.find(x=>x.id===branchId);
+  const nameAll=branchId==='ALL'?'Semua Cabang':(b?b.name:branchId);
+  if(isPusat()){session.branchId=branchId;session.branchName=nameAll}
+  loadActiveBranchIntoGlobals();
+  const sel=document.getElementById('pusat-branch-select');
+  if(sel)sel.value=branchId;
+  const sa=document.getElementById('input-saldo-awal');
+  if(sa){
+    sa.value=num(window.branchSaldoAwal)||'';
+    sa.disabled=(branchId==='ALL'); // saldo awal diubah per cabang
+    sa.title=branchId==='ALL'?'Pilih satu cabang untuk ubah saldo awal':'Saldo awal cabang ini';
+  }
+  const label=document.getElementById('session-label');
+  if(label)label.innerText=isPusat()?('Pusat · '+nameAll):(session.branchName||branchId);
+  try{localStorage.setItem(SESSION_KEY,JSON.stringify(session))}catch(e){}
+  if(!skipRender)renderAll();
+  if(isOnlineSession() && !skipRender){
+    cloudPullAll().catch(e=>console.warn(e));
+  }
+}
+function applyRoleUI(){
+  ['harga','resep','opname'].forEach(tab=>{
+    const nav=document.getElementById('nav-'+tab);
+    if(nav)nav.style.display=isPusat()?'':'none';
+  });
+  const pc=document.getElementById('pusat-controls');
+  if(pc){if(isPusat()){pc.classList.remove('hidden');pc.classList.add('flex');}else{pc.classList.add('hidden');pc.classList.remove('flex');}}
+  if(isPusat()&&typeof refreshBranchSelect==='function')refreshBranchSelect();
+  document.body.classList.toggle('role-cabang',isCabang());
+  document.body.classList.toggle('role-pusat',isPusat());
+  const bar=document.getElementById('session-bar');
+  if(bar)bar.classList.remove('hidden');
+  const label=document.getElementById('session-label');
+  if(label)label.innerText=isPusat()?('Pusat · '+(session.branchName||'')):(session.branchName||'Cabang');
+  // Belanja: cabang hanya asal Cabang, tidak tambah barang
+  const asal=document.getElementById('belanja-asal');
+  if(asal){
+    [...asal.options].forEach(o=>{
+      if((o.value||o.textContent)==='Pusat') o.style.display=isCabang()?'none':'';
+    });
+    if(isCabang()){asal.value='Cabang';asal.disabled=true;}
+    else asal.disabled=false;
+  }
+  document.querySelectorAll('button[onclick*="openBahanModal"], #stok-btn-kelola').forEach(el=>{
+    el.style.display=isCabang()?'none':'';
+  });
+  // Dashboard cards
+  document.querySelectorAll('#dash-belanja-pusat').forEach(el=>{const c=el.closest('div.bg-white');if(c)c.style.display=isCabang()?'none':'';});
+  document.querySelectorAll('#dash-aset-stok').forEach(el=>{const c=el.closest('div.bg-white');if(c)c.style.display=isCabang()?'none':'';});
+  const pp=document.getElementById('pos-price-date');
+  if(pp){const w=pp.parentElement;if(w)w.style.display=isCabang()?'none':'flex';}
+  const hv=document.getElementById('harga-view-date-bar');
+  if(hv)hv.style.display=isCabang()?'none':'';
+  const lb=document.getElementById('label-belanja-cabang');
+  if(lb)lb.innerText=isCabang()?'Total Belanja':'Belanja Cabang';
+  if(typeof updateAutoRefreshUI==='function') updateAutoRefreshUI();
+}
+
+async function supabaseLogin(){
+  const errEl=document.getElementById('login-error');
+  if(errEl){errEl.classList.add('hidden');errEl.innerText='';}
+  if(!sb){
+    if(errEl){errEl.innerText='Supabase belum terhubung. Cek koneksi / kunci API.';errEl.classList.remove('hidden');}
+    return;
+  }
+  const email=(document.getElementById('login-email')?.value||'').trim();
+  const password=document.getElementById('login-password')?.value||'';
+  if(!email||!password){
+    if(errEl){errEl.innerText='Isi email dan password';errEl.classList.remove('hidden');}
+    return;
+  }
+  const btn=document.getElementById('btn-supabase-login');
+  if(btn){btn.disabled=true;btn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> Masuk...';}
+  try{
+    const { data, error } = await sb.auth.signInWithPassword({ email, password });
+    if(error) throw error;
+    const user=data.user;
+    if(!user) throw new Error('User kosong');
+    const profile=await fetchProfile(user.id);
+    if(!profile) throw new Error('Profil belum diisi di tabel profiles. Hubungi admin.');
+    if(profile.is_active===false) throw new Error('Akun nonaktif');
+    let branchName='', branchCode='';
+    let remoteBranches=[];
+    try { remoteBranches=await fetchBranches(); } catch(e){ console.warn(e); }
+    if(remoteBranches.length){
+      // map remote branches into DEMO_BRANCHES for UI
+      DEMO_BRANCHES.length=0;
+      remoteBranches.forEach(b=>DEMO_BRANCHES.push({id:b.id, name:b.name, code:b.code}));
+    }
+    if(profile.role==='pusat'){
+      session={role:'pusat', branchId:'ALL', branchName:'Semua Cabang', userId:user.id, fullName:profile.full_name||'', online:true};
+      activeBranchId='ALL';
+    }else{
+      const br=DEMO_BRANCHES.find(b=>b.id===profile.branch_id);
+      branchName=br?br.name:(profile.branch_id||'Cabang');
+      session={role:'cabang', branchId:profile.branch_id, branchName, userId:user.id, fullName:profile.full_name||'', online:true};
+      activeBranchId=profile.branch_id;
+      if(profile.branch_id && !branchStore[profile.branch_id]) ensureBranchPack(profile.branch_id);
+    }
+    try{ localStorage.setItem(SESSION_KEY, JSON.stringify(session)); }catch(e){}
+    document.getElementById('login-screen').classList.add('hidden');
+    applyRoleUI();
+    if(typeof refreshBranchSelect==='function')refreshBranchSelect();
+    setActiveBranch(activeBranchId, true);
+    renderAll();
+    switchTab(isPusat()?'dashboard':'pos');
+    showToast('Masuk: '+(profile.full_name||email)+' ('+profile.role+')');
+    try{ await cloudPullAll(); }catch(e){ console.warn('cloud pull', e); }
+    updateAutoRefreshUI();
+  }catch(e){
+    console.error(e);
+    const msg=e.message||String(e);
+    if(errEl){errEl.innerText=msg;errEl.classList.remove('hidden');}
+    showToast('Gagal masuk: '+msg);
+  }finally{
+    if(btn){btn.disabled=false;btn.innerHTML='<i class="fa-solid fa-right-to-bracket"></i> Masuk';}
+  }
+}
+async function supabaseLogout(){
+  try{ if(sb) await sb.auth.signOut(); }catch(e){}
+}
+
+function demoLogin(role,branchId){ throw new Error('Demo login disabled: online-only mode.');
+  if(role==='pusat'){
+    session={role:'pusat',branchId:'ALL',branchName:'Semua Cabang'};
+    activeBranchId='ALL';
+  }else{
+    const b=DEMO_BRANCHES.find(x=>x.id===branchId)||DEMO_BRANCHES[0];
+    session={role:'cabang',branchId:b.id,branchName:b.name};
+    activeBranchId=b.id;
+  }
+  try{localStorage.setItem(SESSION_KEY,JSON.stringify(session))}catch(e){}
+  loadActiveBranchIntoGlobals();
+  document.getElementById('login-screen').classList.add('hidden');
+  applyRoleUI();
+  if(typeof refreshBranchSelect==='function')refreshBranchSelect();
+  setActiveBranch(activeBranchId,true);
+  renderAll();
+  switchTab(isPusat()?'dashboard':'pos');
+  showToast(isPusat()?'Masuk sebagai PUSAT (demo)':'Masuk sebagai '+session.branchName);
+}
+function demoLogout(){
+  saveGlobalsIntoActiveBranch();
+  try{saveToLocalStorage()}catch(e){}
+  try{supabaseLogout()}catch(e){}
+  stopAutoRefresh();
+  session={role:null,branchId:null,branchName:null};
+  try{localStorage.removeItem(SESSION_KEY)}catch(e){}
+  document.getElementById('login-screen').classList.remove('hidden');
+  const bar=document.getElementById('session-bar');
+  if(bar)bar.classList.add('hidden');
+  updateAutoRefreshUI();
+  renderLoginBranchButtons();
+  showToast('Anda keluar');
+}
+function restoreSession(){
+  try{
+    const s=JSON.parse(localStorage.getItem(SESSION_KEY)||'null');
+    if(s&&(s.role==='pusat'||s.role==='cabang')){
+      session=s;
+      activeBranchId=s.role==='cabang'?s.branchId:(s.branchId||DEMO_BRANCHES[0].id);
+      document.getElementById('login-screen').classList.add('hidden');
+      return true;
+    }
+  }catch(e){}
+  return false;
+}
+/* Guard pusat-only actions */
+const _openHargaModal=typeof openHargaModal==='function'?openHargaModal:null;
+const _openResepModal=typeof openResepModal==='function'?openResepModal:null;
+const _saveOpname=typeof saveOpname==='function'?saveOpname:null;
+
+
+/* Role guards & multi-branch save hook */
+(function(){
+  const _oh=openHargaModal, _or=openResepModal, _so=saveOpname, _sh=saveHargaModal, _sr=saveNewResep;
+  openHargaModal=function(i){if(isCabang())return showToast('Hanya pusat yang dapat mengubah harga');return _oh(i)};
+  const _ob=openBahanModal;
+  openBahanModal=function(){if(isCabang())return showToast('Jenis barang / bahan hanya diinput pusat');return _ob.apply(this,arguments)};
+  openResepModal=function(i){if(isCabang())return showToast('Hanya pusat yang dapat mengubah resep');return _or(i)};
+  saveHargaModal=function(){if(isCabang())return showToast('Hanya pusat yang dapat mengubah harga');return _sh()};
+  saveNewResep=function(){if(isCabang())return showToast('Hanya pusat yang dapat mengubah resep');return _sr()};
+  saveOpname=function(){if(isCabang())return showToast('Opname hanya dilakukan pusat');if(blockIfAllBranches('opname'))return;return _so.apply(this,arguments)};
+  const _st=switchTab;
+  switchTab=function(tab){
+    if(isCabang()&&['harga','resep','opname'].includes(tab)){showToast('Menu ini hanya untuk pusat');tab='pos'}
+    return _st(tab);
+  };
+  const _save=saveToLocalStorage;
+  saveToLocalStorage=function(reason){
+    saveGlobalsIntoActiveBranch();
+    try{
+      const payload={schemaVersion:3,appVersion:APP_VERSION,updatedAt:new Date().toISOString(),
+        menuHarga,bahanList,bahanMeta,resepData,branchStore,activeBranchId,demoBranches:DEMO_BRANCHES};
+      localStorage.setItem(DATA_KEY,JSON.stringify(payload));
+    }catch(e){console.error(e);showToast('Gagal menyimpan data')}
+  };
+  const _load=loadFromLocalStorage;
+  loadFromLocalStorage=function(){
+    let saved=localStorage.getItem(DATA_KEY);
+    if(!saved){saved=localStorage.getItem(LEGACY_KEY)}
+    DEMO_BRANCHES.forEach(b=>ensureBranchPack(b.id));
+    if(!saved)return;
+    try{
+      const p=JSON.parse(saved);const d=p.data||p;
+      if(d.menuHarga)menuHarga=d.menuHarga;
+      if(d.bahanList)bahanList=d.bahanList;
+      if(d.bahanMeta)bahanMeta=d.bahanMeta;
+      if(d.resepData)resepData=d.resepData;
+      if(d.branchStore&&typeof d.branchStore==='object'){branchStore=d.branchStore}
+      else{
+        branchStore['CBN-01']={
+          belanjaData:d.belanjaData||[],transaksiData:d.transaksiData||[],
+          opnameData:d.opnameData||[],setoranData:d.setoranData||[]
+        };
+        DEMO_BRANCHES.forEach(b=>{if(b.id!=='CBN-01')ensureBranchPack(b.id)});
+      }
+      DEMO_BRANCHES.forEach(b=>ensureBranchPack(b.id));
+      if(d.activeBranchId)activeBranchId=d.activeBranchId;
+      if(Array.isArray(d.demoBranches)&&d.demoBranches.length){
+        DEMO_BRANCHES.length=0;
+        d.demoBranches.forEach(b=>DEMO_BRANCHES.push(b));
+      }
+      if(typeof normalizeData==='function')normalizeData();
+      if(typeof migrateMenuHarga==='function')migrateMenuHarga();
+    }catch(e){console.error(e)}
+  };
+})();
+
+window.onload=()=>{
+loadFromLocalStorage();
+if(typeof migrateMenuHarga==='function')migrateMenuHarga();
+const logged=restoreSession();
+if(logged){loadActiveBranchIntoGlobals();applyRoleUI();if(typeof refreshBranchSelect==='function')refreshBranchSelect();}
+else if(typeof renderLoginBranchButtons==='function')renderLoginBranchButtons();
+// Coba sesi Supabase tersimpan
+(async function(){
+  if(!sb)return;
+  try{
+    const { data: { session: s } } = await sb.auth.getSession();
+    if(s&&s.user&&!logged){
+      document.getElementById('login-email').value=s.user.email||'';
+      // auto re-login profile
+      const profile=await fetchProfile(s.user.id);
+      if(profile){
+        let remoteBranches=[];
+        try{remoteBranches=await fetchBranches();}catch(e){}
+        if(remoteBranches.length){DEMO_BRANCHES.length=0;remoteBranches.forEach(b=>DEMO_BRANCHES.push({id:b.id,name:b.name,code:b.code}));}
+        if(profile.role==='pusat'){
+          session={role:'pusat',branchId:'ALL',branchName:'Semua Cabang',userId:s.user.id,fullName:profile.full_name||'',online:true};
+          activeBranchId='ALL';
+        }else{
+          const br=DEMO_BRANCHES.find(b=>b.id===profile.branch_id);
+          session={role:'cabang',branchId:profile.branch_id,branchName:br?br.name:profile.branch_id,userId:s.user.id,fullName:profile.full_name||'',online:true};
+          activeBranchId=profile.branch_id;
+        }
+        try{localStorage.setItem(SESSION_KEY,JSON.stringify(session))}catch(e){}
+        document.getElementById('login-screen').classList.add('hidden');
+        loadActiveBranchIntoGlobals();applyRoleUI();
+        if(typeof refreshBranchSelect==='function')refreshBranchSelect();
+        setActiveBranch(activeBranchId,true);renderAll();
+      }
+    }
+  }catch(e){console.warn('supabase session',e)}
+})();
+const d=today();['trx-date','belanja-date','opname-date','setoran-date','pos-price-date'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=d;});document.getElementById('current-date').innerText=new Date().toLocaleDateString('id-ID',{weekday:'short',day:'numeric',month:'short'});updatePeriodUI();renderAll();initCharts()};
+</script>
+
+<div id="bahan-history-modal" class="fixed inset-0 bg-stone-900/60 hidden items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-2xl max-w-md w-full p-4 space-y-3 max-h-[85vh] flex flex-col">
+    <div class="flex justify-between items-center">
+      <h3 id="bahan-history-title" class="font-bold text-xs">Riwayat Stok</h3>
+      <button type="button" onclick="closeBahanHistory()" class="text-stone-400 text-sm px-2">✕</button>
+    </div>
+    <p id="bahan-history-summary" class="text-[10px] text-stone-500"></p>
+    <div class="overflow-y-auto flex-1 border border-stone-100 rounded-xl">
+      <table class="w-full text-left text-[11px]">
+        <thead class="bg-stone-50 text-stone-400 uppercase sticky top-0"><tr>
+          <th class="py-2 px-2">Tgl</th><th class="py-2 px-2">Jenis</th><th class="py-2 px-2">Qty</th><th class="py-2 px-2">Ket</th>
+        </tr></thead>
+        <tbody id="bahan-history-body" class="divide-y divide-stone-100"></tbody>
+      </table>
+    </div>
+    <button type="button" onclick="closeBahanHistory()" class="w-full bg-stone-100 py-2 rounded-xl text-xs font-semibold">Tutup</button>
+  </div>
+</div>
+
+</body>
+</html>
