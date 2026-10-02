@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>KOPI GENGGAM Mobile - Versi 2.0.23</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#1c1917">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="https://placehold.co/192x192/d97706/ffffff?text=KG">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+        body { font-family:'Plus Jakarta Sans',sans-serif;-webkit-tap-highlight-color:transparent; }
+        ::-webkit-scrollbar{width:3px;height:3px}::-webkit-scrollbar-track{background:#f1f1f1}
+        ::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:3px}
+        @media screen and (max-height:500px) and (orientation:landscape){#rotate-warning{display:flex!important}}
+    </style>
+
+<style id="role-css">
+:root {
+  --glass-bg: rgba(255, 255, 255, 0.55);
+  --glass-bg-strong: rgba(255, 255, 255, 0.72);
+  --glass-bg-dark: rgba(28, 25, 23, 0.55);
+  --glass-bg-dark-strong: rgba(12, 10, 9, 0.72);
+  --glass-border: rgba(255, 255, 255, 0.45);
+  --glass-border-dark: rgba(255, 255, 255, 0.1);
+  --glass-blur: 16px;
+  --glass-blur-lg: 24px;
+  --glass-shadow: 0 4px 24px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.6);
+  --glass-shadow-dark: 0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.08);
+  --amber: #d97706;
+  --ink: #1c1917;
+  --ink-soft: #78716c;
+}
+html { -webkit-tap-highlight-color: transparent; }
+body {
+  font-family: "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
+  background:
+    radial-gradient(900px 500px at 0% 0%, rgba(251, 191, 36, 0.28), transparent 50%),
+    radial-gradient(700px 400px at 100% 10%, rgba(167, 139, 250, 0.12), transparent 45%),
+    radial-gradient(800px 500px at 50% 100%, rgba(56, 189, 248, 0.1), transparent 50%),
+    linear-gradient(160deg, #e7e5e4 0%, #f5f5f4 40%, #fafaf9 100%);
+  background-attachment: fixed;
+  color: var(--ink);
+  min-height: 100dvh;
+}
+/* Full glass surfaces */
+main, #app-main, .flex-1.overflow-y-auto {
+  background: transparent !important;
+}
+header, #session-bar, .period-master-bar,
+nav.bg-stone-900, nav[class*="bg-stone-900"] {
+  background: rgba(12, 10, 9, 0.62) !important;
+  backdrop-filter: blur(20px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(160%) !important;
+  border-color: rgba(255,255,255,0.1) !important;
+}
+#session-bar {
+  background: rgba(20, 18, 16, 0.55) !important;
+}
+.bg-white, .bg-stone-50, .period-tab-strip {
+  background: rgba(255, 255, 255, 0.5) !important;
+  backdrop-filter: blur(16px) saturate(165%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(165%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.55) !important;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.05), inset 0 1px 0 rgba(255,255,255,0.75) !important;
+}
+.bg-amber-50, .period-tab-strip.bg-amber-50 {
+  background: rgba(255, 247, 237, 0.55) !important;
+  backdrop-filter: blur(14px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(14px) saturate(160%) !important;
+  border: 1px solid rgba(251, 191, 36, 0.28) !important;
+}
+.bg-rose-50 {
+  background: rgba(255, 241, 242, 0.6) !important;
+  backdrop-filter: blur(10px) !important;
+}
+.bg-emerald-50 {
+  background: rgba(236, 253, 245, 0.6) !important;
+  backdrop-filter: blur(10px) !important;
+}
+.bg-indigo-50 {
+  background: rgba(238, 242, 255, 0.6) !important;
+  backdrop-filter: blur(10px) !important;
+}
+
+/* ===== Glass utility ===== */
+.glass {
+  background: var(--glass-bg) !important;
+  backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  border: 1px solid var(--glass-border) !important;
+  box-shadow: var(--glass-shadow) !important;
+}
+.glass-strong {
+  background: var(--glass-bg-strong) !important;
+  backdrop-filter: blur(var(--glass-blur-lg)) saturate(170%);
+  -webkit-backdrop-filter: blur(var(--glass-blur-lg)) saturate(170%);
+  border: 1px solid rgba(255,255,255,0.55) !important;
+  box-shadow: var(--glass-shadow) !important;
+}
+.glass-dark {
+  background: var(--glass-bg-dark) !important;
+  backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  border: 1px solid var(--glass-border-dark) !important;
+  box-shadow: var(--glass-shadow-dark) !important;
+}
+.glass-dark-strong {
+  background: var(--glass-bg-dark-strong) !important;
+  backdrop-filter: blur(var(--glass-blur-lg)) saturate(150%);
+  -webkit-backdrop-filter: blur(var(--glass-blur-lg)) saturate(150%);
+  border: 1px solid rgba(255,255,255,0.12) !important;
+  box-shadow: var(--glass-shadow-dark) !important;
+}
+
+/* ===== Login glass ===== */
+#login-screen {
+  background:
+    radial-gradient(ellipse 80% 50% at 20% 15%, rgba(245, 158, 11, 0.25), transparent 50%),
+    radial-gradient(ellipse 60% 40% at 90% 80%, rgba(120, 113, 108, 0.3), transparent 45%),
+    linear-gradient(160deg, #1c1917 0%, #0c0a09 50%, #292524 100%);
+}
+#login-screen .login-card {
+  background: rgba(28, 25, 23, 0.45) !important;
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  border: 1px solid rgba(255,255,255,0.12) !important;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1);
+}
+#login-screen .login-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, transparent 40%, transparent 100%);
+}
+#login-screen .login-card { position: relative; overflow: hidden; }
+
+/* ===== Chrome glass ===== */
+header {
+  background: rgba(12, 10, 9, 0.75) !important;
+  backdrop-filter: blur(18px) saturate(150%);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+  border-bottom: 1px solid rgba(255,255,255,0.08) !important;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+}
+#session-bar {
+  background: rgba(20, 18, 16, 0.7) !important;
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  border-color: rgba(255,255,255,0.07) !important;
+}
+.period-master-bar {
+  background: rgba(28, 25, 23, 0.65) !important;
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  border-color: rgba(255,255,255,0.07) !important;
+}
+nav.bg-stone-900, nav[class*="bg-stone-900"] {
+  background: rgba(12, 10, 9, 0.78) !important;
+  backdrop-filter: blur(18px) saturate(150%);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+  border-top: 1px solid rgba(255,255,255,0.08) !important;
+  box-shadow: 0 -4px 24px rgba(0,0,0,0.2);
+}
+
+/* ===== Cards & panels ===== */
+main .bg-white,
+#tab-dashboard .bg-white,
+#tab-pos .bg-white,
+#tab-harga .bg-white,
+#tab-resep .bg-white,
+#tab-belanja .bg-white,
+#tab-stok .bg-white,
+#tab-opname .bg-white,
+#tab-setoran .bg-white,
+.period-tab-strip {
+  background: rgba(255, 255, 255, 0.62) !important;
+  backdrop-filter: blur(14px) saturate(160%);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.55) !important;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.05), inset 0 1px 0 rgba(255,255,255,0.7) !important;
+}
+.period-tab-strip.bg-amber-50 {
+  background: rgba(255, 247, 237, 0.7) !important;
+  border-color: rgba(251, 191, 36, 0.25) !important;
+}
+#stok-mgmt-panel > div,
+#dash-stock-alerts > div {
+  background: rgba(255,255,255,0.65) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.5) !important;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.04) !important;
+}
+
+/* ===== Modals glass ===== */
+[id$="-modal"],
+#harga-modal, #bahan-modal, #resep-modal, #trx-modal, #bahan-history-modal {
+  background: rgba(12, 10, 9, 0.45) !important;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+[id$="-modal"] > div,
+#harga-modal > div, #bahan-modal > div, #resep-modal > div, #trx-modal > div, #bahan-history-modal > div {
+  background: rgba(255, 255, 255, 0.82) !important;
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid rgba(255,255,255,0.65) !important;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.8) !important;
+}
+
+/* ===== Buttons ===== */
+button, .cursor-pointer {
+  transition: transform 0.12s ease, background 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+}
+button:active { transform: scale(0.97); }
+.bg-amber-600, .bg-amber-600:hover {
+  background: linear-gradient(180deg, rgba(245,158,11,0.95) 0%, rgba(217,119,6,0.95) 100%) !important;
+  box-shadow: 0 4px 14px rgba(217, 119, 6, 0.35), inset 0 1px 0 rgba(255,255,255,0.25) !important;
+  border: 1px solid rgba(255,255,255,0.15);
+}
+.bg-emerald-600 {
+  background: linear-gradient(180deg, rgba(16,185,129,0.95) 0%, rgba(5,150,105,0.95) 100%) !important;
+  box-shadow: 0 4px 14px rgba(5, 150, 105, 0.3), inset 0 1px 0 rgba(255,255,255,0.2) !important;
+}
+#pusat-branch-mgmt {
+  background: rgba(255,255,255,0.06);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-color: rgba(255,255,255,0.12) !important;
+}
+#pusat-branch-mgmt button:hover {
+  background: rgba(255,255,255,0.08) !important;
+}
+
+/* ===== Inputs ===== */
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+select, textarea {
+  border-radius: 0.65rem !important;
+  background: rgba(255,255,255,0.55) !important;
+  color: #1c1917 !important;
+  backdrop-filter: blur(10px) saturate(150%);
+  -webkit-backdrop-filter: blur(10px) saturate(150%);
+  border: 1px solid rgba(255,255,255,0.5) !important;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+}
+input.auto-refresh-cb {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  width: 14px !important;
+  height: 14px !important;
+  accent-color: #f59e0b;
+}
+input::placeholder, textarea::placeholder {
+  color: #78716c !important;
+  opacity: 1;
+}
+input:not([type="checkbox"]):focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: rgba(245, 158, 11, 0.7) !important;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
+  background: rgba(255,255,255,0.85) !important;
+  color: #1c1917 !important;
+}
+/* Login: kontras tinggi di latar gelap */
+#login-screen input,
+#login-screen select {
+  background: #1c1917 !important;
+  border: 1px solid #a8a29e !important;
+  color: #fafaf9 !important;
+}
+#login-screen input::placeholder {
+  color: #a8a29e !important;
+}
+#login-screen input:focus {
+  background: #292524 !important;
+  border-color: #f59e0b !important;
+  color: #fafaf9 !important;
+}
+/* Session bar / header gelap */
+.period-master-bar input[type="date"],
+#session-bar input,
+#session-bar select {
+  background: #292524 !important;
+  border: 1px solid #78716c !important;
+  color: #fafaf9 !important;
+}
+#session-bar select option {
+  background: #1c1917;
+  color: #fafaf9;
+}
+#session-bar label,
+#session-bar label span {
+  color: #e7e5e4 !important;
+}
+
+/* ===== Tables ===== */
+table thead { letter-spacing: 0.04em; }
+table thead tr {
+  background: rgba(255,255,255,0.4) !important;
+}
+table tbody tr { transition: background 0.12s; }
+table tbody tr:hover { background: rgba(255,255,255,0.45) !important; }
+
+/* ===== Period chips ===== */
+[data-period] {
+  backdrop-filter: blur(6px);
+  border: 1px solid transparent;
+}
+[data-period].bg-amber-600 {
+  border-color: rgba(255,255,255,0.25);
+  box-shadow: 0 2px 8px rgba(217,119,6,0.3);
+}
+[data-period].bg-stone-200 {
+  background: rgba(255,255,255,0.5) !important;
+  border-color: rgba(0,0,0,0.04);
+}
+
+/* ===== POS menu tiles ===== */
+#pos-menu-grid > div {
+  background: rgba(255,255,255,0.7) !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.55) !important;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.7);
+}
+#pos-menu-grid > div:active {
+  border-color: rgba(217, 119, 6, 0.5) !important;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.25);
+}
+
+/* ===== Role rules ===== */
+body.role-cabang #stok-table-body td:nth-child(5),
+body.role-cabang #tab-stok thead th:nth-child(5),
+body.role-cabang .stok-nilai-col,
+body.role-cabang #stok-nilai-card { display:none !important; }
+body.role-cabang .hide-on-cabang { display:none !important; }
+body.role-cabang #dash-belanja-pusat-card,
+body.role-cabang #dash-aset-stok-card,
+body.role-cabang #pos-price-date-wrap,
+body.role-cabang #harga-view-date-bar,
+body.role-cabang .btn-bahan-master,
+body.role-cabang #stok-btn-kelola { display:none !important; }
+#login-screen.hidden { display:none !important; }
+
+/* ===== Misc ===== */
+.rounded-2xl { border-radius: 1rem !important; }
+.rounded-xl { border-radius: 0.85rem !important; }
+.rounded-3xl { border-radius: 1.25rem !important; }
+*::-webkit-scrollbar { width: 6px; height: 6px; }
+*::-webkit-scrollbar-thumb { background: rgba(168,162,158,0.5); border-radius: 99px; }
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass, main .bg-white, .period-tab-strip, #pos-menu-grid > div {
+    background: rgba(255,255,255,0.92) !important;
+  }
+  header, #session-bar, .period-master-bar, nav.bg-stone-900 {
+    background: rgba(12,10,9,0.94) !important;
+  }
+}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+
+<body class="bg-stone-100 text-stone-900 antialiased flex flex-col h-screen overflow-hidden">
+
+<div id="login-screen" class="fixed inset-0 z-[100] flex flex-col items-center justify-center p-6">
+  <div class="w-full max-w-sm space-y-6">
+    <div class="text-center space-y-2">
+      <div class="bg-gradient-to-b from-amber-400 to-amber-600 w-16 h-16 rounded-3xl flex items-center justify-center text-white text-2xl mx-auto shadow-lg"><i class="fa-solid fa-mug-hot"></i></div>
+      <h1 class="text-white font-bold text-xl tracking-tight mt-2">Kopi Genggam</h1>
+      <p class="text-stone-400 text-[11px]">Online · Supabase</p>
+    </div>
+    <div class="login-card relative rounded-3xl p-5 space-y-4">
+      <p class="text-[11px] text-stone-400 font-medium">Masuk dengan akun Anda</p>
+      <div class="space-y-2">
+        <input type="email" id="login-email" placeholder="Email" autocomplete="username"
+          class="w-full bg-stone-900/50 border border-stone-600 text-stone-100 rounded-xl px-3 py-2.5 text-sm placeholder:text-stone-500">
+        <input type="password" id="login-password" placeholder="Password" autocomplete="current-password" onkeydown="if(event.key==='Enter')supabaseLogin()"
+          class="w-full bg-stone-900/50 border border-stone-600 text-stone-100 rounded-xl px-3 py-2.5 text-sm placeholder:text-stone-500">
+      </div>
+      <button type="button" id="btn-supabase-login" onclick="supabaseLogin()"
+        class="w-full bg-amber-600 hover:bg-amber-500 text-white font-semibold py-3.5 rounded-2xl text-sm flex items-center justify-center gap-2">
+        <i class="fa-solid fa-right-to-bracket"></i> Masuk
+      </button>
+      <p id="login-error" class="text-[11px] text-rose-400 hidden text-center"></p>
+      <div class="relative flex items-center gap-3 py-0.5">
+        <div class="flex-1 h-px bg-stone-700"></div>
+        <span class="text-[10px] text-stone-500 uppercase tracking-wider">atau demo lokal</span>
+        <div class="flex-1 h-px bg-stone-700"></div>
+      </div>
+      <button type="button" onclick="demoLogin('pusat')" class="w-full bg-stone-800 hover:bg-stone-700 border border-stone-600 text-stone-200 font-semibold py-2.5 rounded-xl text-[11px]">Demo Pusat</button>
+      <div id="login-branch-btns" class="grid grid-cols-2 gap-2"></div>
+      <p class="text-[10px] text-stone-500 leading-relaxed">Akun online memakai email/password yang dibuat di Supabase Auth.</p>
+    </div>
+  </div>
+</div>
+<div id="session-bar" class="hidden bg-stone-900 text-stone-300 px-2.5 py-1.5 shrink-0 border-b border-stone-700 text-[10px] z-20 space-y-1">
+  <div class="flex items-center justify-between gap-2">
+    <span class="truncate min-w-0">Akun: <b id="session-label" class="text-amber-400">—</b></span>
+    <div class="flex items-center gap-1 shrink-0">
+      <label id="auto-refresh-wrap" class="inline-flex items-center gap-1 text-[9px] text-stone-100 border border-amber-500/50 bg-stone-800/80 rounded-md px-1.5 py-0.5 cursor-pointer" title="Auto-refresh data cloud tiap 15 detik">
+        <input type="checkbox" id="auto-refresh-toggle" class="auto-refresh-cb accent-amber-500 w-3.5 h-3.5 shrink-0" onchange="setAutoRefresh(this.checked)">
+        <span class="font-semibold text-amber-300">Auto</span>
+      </label>
+      <button type="button" id="btn-cloud-refresh" onclick="manualCloudRefresh()" class="inline-flex items-center gap-0.5 text-[9px] font-semibold text-sky-200 hover:text-white border border-sky-500/50 bg-stone-800/80 px-1.5 py-0.5 rounded-md" title="Tarik data terbaru dari server">
+        <i class="fa-solid fa-rotate"></i> Refresh
+      </button>
+      <button type="button" onclick="demoLogout()" class="inline-flex items-center gap-0.5 text-[9px] font-semibold text-rose-200 hover:text-white border border-rose-500/40 bg-stone-800/80 px-1.5 py-0.5 rounded-md" title="Keluar dari akun">
+        <i class="fa-solid fa-right-from-bracket"></i> Keluar
+      </button>
+    </div>
+  </div>
+  <div id="pusat-controls" class="hidden flex-wrap items-center gap-x-2 gap-y-1">
+    <label class="inline-flex items-center gap-1 text-stone-500">
+      <span>Cabang</span>
+      <select id="pusat-branch-select" onchange="setActiveBranch(this.value)" class="bg-stone-800 border border-stone-600 text-stone-100 rounded px-1.5 py-0.5 text-[10px] max-w-[9rem]"></select>
+    </label>
+    <label id="pusat-saldo-awal-wrap" class="inline-flex items-center gap-1 text-stone-500">
+      <span>Saldo awal</span>
+      <input type="number" id="input-saldo-awal" class="w-20 bg-stone-800 border border-stone-600 text-stone-100 rounded px-1.5 py-0.5 text-[10px]" placeholder="0" onchange="setBranchSaldoAwal(this.value)">
+    </label>
+    <span id="pusat-branch-mgmt" class="inline-flex items-center rounded-md border border-stone-600 overflow-hidden divide-x divide-stone-600">
+      <button type="button" onclick="resetActiveBranchData()" class="px-2 py-0.5 text-[9px] font-medium text-rose-300 hover:bg-stone-800" title="Kosongkan data cabang aktif">Reset</button>
+      <button type="button" onclick="addDemoBranch()" class="px-2 py-0.5 text-[9px] font-medium text-stone-100 hover:bg-stone-800" title="Tambah cabang baru">Tambah</button>
+      <button type="button" onclick="deleteActiveBranch()" class="px-2 py-0.5 text-[9px] font-medium text-stone-100 hover:bg-stone-800" title="Hapus cabang aktif">Hapus</button>
+    </span>
+  </div>
+</div>
+
+<div id="rotate-warning" class="fixed inset-0 bg-stone-900 text-white z-50 hidden flex-col items-center justify-center p-6 text-center space-y-3">
+    <i class="fa-solid fa-mobile-screen text-4xl text-amber-500 animate-bounce"></i>
+    <h2 class="font-bold text-base">Mohon Gunakan Posisi Potret (Portrait)</h2>
+    <p class="text-xs text-stone-400">Aplikasi ini dirancang khusus untuk kenyamanan penggunaan di handphone dalam mode vertikal.</p>
+</div>
+
+<header class="bg-stone-900 text-white px-4 py-3 flex justify-between items-center shadow-md z-20 shrink-0">
+    <div class="flex items-center space-x-2.5">
+        <div class="bg-amber-600 w-8 h-8 rounded-xl flex items-center justify-center text-white shadow-sm"><i class="fa-solid fa-mug-hot text-sm"></i></div>
+        <div><h1 id="header-title" class="font-bold text-sm tracking-wide">Dashboard (v3.0.0-online)</h1><p id="current-date" class="text-[10px] text-stone-400"></p></div>
+    </div>
+    <div class="flex items-center space-x-2">
+        <button id="install-btn" onclick="installPWA()" class="hidden bg-amber-600 hover:bg-amber-700 text-white px-2.5 py-1.5 rounded-xl text-xs font-semibold shadow-sm flex items-center space-x-1 active:scale-95 transition animate-pulse"><i class="fa-solid fa-download"></i><span>Install</span></button>
+        <button onclick="exportToExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1.5 rounded-xl text-xs font-semibold shadow-sm flex items-center space-x-1 active:scale-95 transition"><i class="fa-solid fa-file-excel"></i><span>Export</span></button>
+        <label class="bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-1.5 rounded-xl text-xs font-semibold shadow-sm flex items-center space-x-1 active:scale-95 transition cursor-pointer"><i class="fa-solid fa-file-import"></i><span>Import</span><input type="file" id="excel-file-input" accept=".xlsx,.xls,.json,application/json" class="hidden" onchange="importFromExcel(event)"></label>
+        <button onclick="switchTab('pos')" class="bg-amber-600 hover:bg-amber-700 text-white px-3 py-1.5 rounded-xl text-xs font-semibold shadow-sm flex items-center space-x-1 active:scale-95 transition"><i class="fa-solid fa-cash-register"></i><span>Kasir</span></button>
+    </div>
+</header>
+
+<div class="period-master-bar bg-stone-800 text-stone-200 px-3 py-1.5 shrink-0 border-b border-stone-700 space-y-1.5">
+    <div class="flex items-center justify-between gap-2 flex-wrap">
+        <span class="text-[10px] text-stone-400">Acuan: <b id="period-label" class="period-label-text text-amber-400">Semua data</b></span>
+        <div class="flex items-center gap-1 flex-wrap justify-end">
+            <button type="button" data-period="semua" onclick="setPeriod('semua','master')" class="px-2 py-1 rounded-lg text-[10px] font-bold bg-amber-600 text-white">Semua</button>
+            <button type="button" data-period="hari" onclick=\"setPeriod('hari','master')\" class="px-2 py-1 rounded-lg text-[10px] font-semibold bg-stone-200 text-stone-600">Harian</button>
+            <button type="button" data-period="minggu" onclick=\"setPeriod('minggu','master')\" class="px-2 py-1 rounded-lg text-[10px] font-semibold bg-stone-200 text-stone-600">Mingguan</button>
+            <button type="button" data-period="bulan" onclick=\"setPeriod('bulan','master')\" class="px-2 py-1 rounded-lg text-[10px] font-semibold bg-stone-200 text-stone-600">Bulanan</button>
+            <button type="button" data-period="custom" onclick=\"setPeriod('custom','master')\" class="px-2 py-1 rounded-lg text-[10px] font-semibold bg-stone-200 text-stone-600">Rentang</button>
+        </div>
+    </div>
+    <div id="period-range-box" class="hidden flex items-center gap-2 flex-wrap text-[10px]">
+        <label class="flex items-center gap-1 text-stone-400">Dari
+            <input type="date" id="period-from" onchange="onPeriodDateChange()" class="bg-stone-700 border border-stone-600 text-stone-100 rounded px-1.5 py-0.5 text-[10px]">
+        </label>
+        <label id="period-to-wrap" class="flex items-center gap-1 text-stone-400">Sampai
+            <input type="date" id="period-to" onchange="onPeriodDateChange()" class="bg-stone-700 border border-stone-600 text-stone-100 rounded px-1.5 py-0.5 text-[10px]">
+        </label>
+    </div>
+</div>
+
+<div id="pwa-install-banner" class="fixed top-14 left-3 right-3 bg-amber-600 text-white p-3 rounded-2xl shadow-lg z-40 hidden flex items-center justify-between">
+    <div class="flex items-center space-x-2.5"><div class="bg-white text-amber-600 w-9 h-9 rounded-xl flex items-center justify-center font-bold text-base shadow-xs"><i class="fa-solid fa-mug-hot"></i></div>
+    <div><h4 class="font-bold text-xs">Install Kopi Genggam v3.0.0-online</h4><p class="text-[10px] text-amber-100">Pasang aplikasi di HP Android untuk akses cepat & offline.</p></div></div>
+    <div class="flex items-center space-x-2"><button onclick="installPWA()" class="bg-white text-amber-800 px-3 py-1.5 rounded-xl font-bold text-xs shadow-xs">Install</button><button onclick="dismissPwaBanner()" class="text-amber-200 p-1"><i class="fa-solid fa-xmark"></i></button></div>
+</div>
+
+<main class="flex-1 overflow-y-auto p-3.5 pb-24 space-y-4">
+<section id="tab-dashboard" class="space-y-3.5">
+    
+<div class="period-tab-strip bg-amber-50 border border-amber-200 rounded-xl p-2.5 space-y-1 shadow-xs" data-tab="dashboard">
+<div class="text-[10px] text-amber-900"><b>Periode acuan master</b> (bar hitam atas). HPP, harga/resep berlaku, dan stok mengikuti ini. Tab lain bisa pilih tampilan sendiri.</div>
+<div class="flex flex-wrap gap-1 mt-1">
+<button type="button" data-period="semua" onclick="setPeriod('semua','master')" class="px-2 py-1 rounded-lg text-[10px] font-semibold bg-stone-200 text-stone-600">Semua</button>
+<button type="button" data-period="hari" onclick="setPeriod('hari','master')" class="px-2 py-1 rounded-lg text-[10px] font-semibold bg-stone-200 text-stone-600">Harian</button>
+<button type="button" data-period="minggu" onclick="setPeriod('minggu','master')" class="px-2 py-1 rounded-lg text-[10px] font-semibold bg-stone-200 text-stone-600">Mingguan</button>
+<button type="button" data-period="bulan" onclick="setPeriod('bulan','master')" class="px-2 py-1 rounded-lg text-[10px] font-semibold bg-stone-200 text-stone-600">Bulanan</button>
+<button type="button" data-period="custom" onclick="setPeriod('custom','master')" class="px-2 py-1 rounded-lg text-[10px] font-semibold bg-stone-200 text-stone-600">Rentang</button>
+</div>
+<div class="period-range-box hidden flex items-center gap-2 flex-wrap text-[10px] mt-1">
+<label class="flex items-center gap-1 text-stone-500">Dari
+<input type="date" class="period-from bg-white border border-stone-200 rounded px-1.5 py-0.5 text-[10px]" onchange="onPeriodDateChangeFromEl(this)"></label>
+<label class="period-to-wrap flex items-center gap-1 text-stone-500">Sampai
+<input type="date" class="period-to bg-white border border-stone-200 rounded px-1.5 py-0.5 text-[10px]" onchange="onPeriodDateChangeFromEl(this)"></label>
+</div></div>
+<div class="grid grid-cols-2 gap-2.5">
+        <div class="bg-white p-3.5 rounded-2xl shadow-xs border border-stone-200"><p class="text-[11px] text-stone-500 font-medium">Total Penjualan</p><h3 id="dash-rev" class="text-sm font-bold mt-1">Rp 0</h3></div>
+        <div class="bg-white p-3.5 rounded-2xl shadow-xs border border-stone-200"><p class="text-[11px] text-stone-500 font-medium">Saldo Cabang</p><!-- (awal+jual)-(belanja+setor) --><h3 id="dash-saldo-cabang" class="text-sm font-bold text-amber-600 mt-1">Rp 0</h3></div>
+        <div class="bg-white p-3.5 rounded-2xl shadow-xs border border-stone-200"><p class="text-[11px] text-stone-500 font-medium">Belanja Pusat</p><h3 id="dash-belanja-pusat" data-card="belanja-pusat" class="text-sm font-bold mt-1">Rp 0</h3></div>
+        <div class="bg-white p-3.5 rounded-2xl shadow-xs border border-stone-200"><p class="text-[11px] text-stone-500 font-medium" id="label-belanja-cabang">Belanja Cabang</p><h3 id="dash-belanja-cabang" class="text-sm font-bold mt-1">Rp 0</h3></div>
+    </div>
+    <div class="grid grid-cols-2 gap-2.5">
+        <div class="bg-white p-3.5 rounded-2xl shadow-xs border border-stone-200 flex justify-between items-center"><div><p class="text-[11px] text-stone-500 font-medium">Total Setoran Kasir</p><h3 id="dash-setoran" class="text-sm font-bold text-emerald-600 mt-1">Rp 0</h3></div><div class="bg-emerald-50 text-emerald-600 p-2.5 rounded-xl"><i class="fa-solid fa-check-to-slot"></i></div></div>
+        <div class="bg-white p-3.5 rounded-2xl shadow-xs border border-stone-200 flex justify-between items-center"><div><p class="text-[11px] text-stone-500 font-medium">Total Nilai Aset Stok</p><h3 id="dash-aset-stok" class="text-sm font-bold text-indigo-600 mt-1">Rp 0</h3></div><div class="bg-indigo-50 text-indigo-600 p-2.5 rounded-xl"><i class="fa-solid fa-vault"></i></div></div>
+    </div>
+    <div class="bg-white p-4 rounded-2xl shadow-xs border border-stone-200 space-y-2"><h3 class="font-bold text-xs">Penjualan & Estimasi Laba per Menu</h3><div class="relative h-48"><canvas id="salesChart"></canvas></div></div>
+    <div class="bg-white p-4 rounded-2xl shadow-xs border border-stone-200 space-y-2"><h3 class="font-bold text-xs">Omzet Harian</h3><div class="relative h-48"><canvas id="trendChart"></canvas></div></div>
+    <div class="bg-white p-4 rounded-2xl shadow-xs border border-stone-200 space-y-2"><h3 class="font-bold text-xs">Komposisi Aset & Kas</h3><div class="relative h-48"><canvas id="assetChart"></canvas></div></div>
+</section>
+
+<section id="tab-pos" class="hidden space-y-3.5">
+    
+<div class="period-tab-strip bg-white border border-stone-200 rounded-xl p-2.5 space-y-1.5 shadow-xs" data-tab="pos">
+<div class="flex items-center justify-between gap-1 flex-wrap">
+<span class="text-[10px] text-stone-500"><span class="text-stone-400">Tampilan:</span> <b class="period-label-text text-amber-600">Ikuti acuan</b></span>
+<div class="flex flex-wrap gap-1 justify-end">
+<button type="button" data-period="master" onclick="setPeriod('master','pos')" class="px-2 py-1 rounded-lg text-[10px] font-bold bg-amber-600 text-white">Acuan</button>
+<button type="button" data-period="semua" onclick="setPeriod('semua','pos')" class="px-2 py-1 rounded-lg text-[10px] font-semibold bg-stone-200 text-stone-600">Semua</button>
+<button type="button" data-period="hari" onclick="setPeriod('hari','pos')" class="px-2 py-1 rounded-lg text-[10px] font-semibold bg-stone-200 text-stone-600">Harian</button>
+<button type="button" data-period="minggu" onclick="setPeriod('minggu','pos')" class="px-2 py-1 rounded-lg text-[10px] font-semibold bg-stone-200 text-stone-600">Mingguan</button>
+<button type="button" data-period="bulan" onclick="setPeriod('bulan','pos')" class="px-2 py-1 rounded-lg text-[10px] font-semibold bg-stone-200 text-stone-600">Bulanan</button>
+<button type="button" data-period="custom" onclick="setPeriod('custom','pos')" class="px-2 py-1 rounded-lg text-[10px] font-semibold bg-stone-200 text-stone-600">Rentang</button>
+</div></div>
+<div class="period-range-box hidden flex items-center gap-2 flex-wrap text-[10px]">
+<label class="flex items-center gap-1 text-stone-500">Dari
+<input type="date" class="period-from bg-stone-50 border border-stone-200 rounded px-1.5 py-0.5 text-[10px]" onchange="onPeriodDateChangeFromEl(this)"></label>
+<label class="period-to-wrap flex items-center gap-1 text-stone-500">Sampai
+<input type="date" class="period-to bg-stone-50 border border-stone-200 rounded px-1.5 py-0.5 text-[10px]" onchange="onPeriodDateChangeFromEl(this)"></label>
+</div></div>
+<div class="bg-white p-3.5 rounded-2xl shadow-xs border border-stone-200 space-y-2.5"><h3 class="font-bold text-xs">Pilih Menu <span class="text-[10px] text-stone-400 font-normal">(Sentuh untuk tambah)</span></h3><div id="pos-menu-grid" class="grid grid-cols-2 gap-2"></div></div>
+    <div class="bg-white p-3.5 rounded-2xl shadow-xs border border-stone-200 space-y-3">
+        <div class="flex justify-between items-center border-b border-stone-100 pb-2"><h3 class="font-bold text-xs">Keranjang Pesanan</h3><button onclick="clearCart()" class="text-[11px] text-rose-600 font-semibold">Reset</button></div>
+        <div id="cart-items" class="space-y-2 max-h-40 overflow-y-auto"></div>
+        <div class="border-t border-stone-100 pt-2 space-y-2"><div class="space-y-1.5">
+<div class="flex justify-between text-xs text-stone-500 items-center"><span>Tgl transaksi</span><input type="date" id="trx-date" onchange="onTrxDateChange()" class="bg-stone-50 border border-stone-200 rounded px-2 py-1 text-xs"></div>
+<div class="flex justify-between text-xs text-stone-500 items-center"><span>Harga per tgl</span><input type="date" id="pos-price-date" onchange="refreshCartPrices()" class="bg-stone-50 border border-amber-300 rounded px-2 py-1 text-xs" title="Pilih tanggal untuk menentukan versi harga yang dipakai"></div>
+</div>
+        <div class="flex justify-between text-xs font-bold pt-1"><span>Total Pembayaran:</span><span id="cart-total" class="text-amber-600 text-sm">Rp 0</span></div>
+        <button onclick="checkout()" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-semibold py-2.5 rounded-xl text-xs shadow-sm">Simpan Transaksi</button></div>
+    </div>
+    <div class="bg-white p-3.5 rounded-2xl shadow-xs border border-stone-200 space-y-3"><h3 class="font-bold text-xs">Riwayat Transaksi</h3><div class="overflow-x-auto"><table class="w-full text-left text-[11px]"><thead><tr class="border-b border-stone-200 text-stone-400 uppercase"><th class="py-2 px-2">Tgl/Menu</th><th class="py-2 px-2">Qty/Tot</th><th class="py-2 px-2 text-center">Aksi</th></tr></thead><tbody id="transactions-table-body" class="divide-y divide-stone-100"></tbody></table></div></div>
+</section>
+
+<section id="tab-harga" class="hidden space-y-3.5">
+<div class="period-tab-strip bg-white border border-stone-200 rounded-xl p-2.5 space-y-1.5 shadow-xs" data-tab="harga">
+<div class="flex items-center justify-between gap-1 flex-wrap">
+<span class="text-[10px] text-stone-500"><span class="text-stone-400">Tampilan:</span> <b class="period-label-text text-amber-600">Ikuti acuan</b></span>
+<div class="flex flex-wrap gap-1 justify-end">
+<button type="button" data-period="master" onclick="setPeriod('master','harga')" class="px-2 py-1 rounded-lg text-[10px] font-bold bg-amber-600 text-white">Acuan</button>
+<button type="button" data-period="semua" onclick="setPeriod('semua','harga')" class="px-2 py-1 rounded-lg text-[10px] font-semibold bg-stone-200 text-stone-600">Semua</button>
+<button type="button" data-period="hari" onclick="setPeriod('hari','harga')" class="px-2 py-1 rounded-lg text-[10px] font-semibold bg-stone-200 text-stone-600">Harian</button>
+<button type="button" data-period="minggu" onclick="setPeriod('minggu','harga')" class="px-2 py-1 rounded-lg text-[10px] font-semibold bg-stone-200 text-stone-600">Mingguan</button>
+<button type="button" data-period="bulan" onclick="setPeriod('bulan','harga')" class="px-2 py-1 rounded-lg text-[10px] font-semibold bg-stone-200 text-stone-600">Bulanan</button>
+<button type="button" data-period="custom" onclick="setPeriod('custom','harga')" class="px-2 py-1 rounded-lg text-[10px] font-semibold bg-stone-200 text-stone-600">Rentang</button>
+</div></div>
+<div class="period-range-box hidden flex items-center gap-2 flex-wrap text-[10px]">
+<label class="flex items-center gap-1 text-stone-500">Dari
+<input type="date" class="period-from bg-stone-50 border border-stone-200 rounded px-1.5 py-0.5 text-[10px]" onchange="onPeriodDateChangeFromEl(this)"></label>
+<label class="period-to-wrap flex items-center gap-1 text-stone-500">Sampai
+<input type="date" class="period-to bg-stone-50 border border-stone-200 rounded px-1.5 py-0.5 text-[10px]" onchange="onPeriodDateChangeFromEl(this)"></label>
+</div></div>
+<div class="bg-white p-3.5 rounded-2xl shadow-xs border border-stone-200 space-y-3">
+<div class="flex justify-between items-center"><div><h3 class="font-bold text-xs">Daftar Harga & Menu</h3><p class="text-[10px] text-stone-400">Tekan & geser atau gunakan tombol panah untuk atur urutan</p></div><button onclick="openHargaModal()" class="bg-amber-600 text-white px-2.5 py-1.5 rounded-xl text-xs font-semibold"><i class="fa-solid fa-plus"></i> Tambah</button></div>
+<div class="overflow-x-auto"><table class="w-full text-left text-[11px]"><thead><tr class="border-b border-stone-200 text-stone-400 uppercase bg-amber-50"><th class="py-2 px-2">Urutan</th><th class="py-2 px-2">Menu</th><th class="py-2 px-2">Harga</th><th class="py-2 px-2">Point</th><th class="py-2 px-2 text-center">Aksi</th></tr></thead><tbody id="harga-table-body" class="divide-y divide-stone-100"></tbody></table></div></div></section>
+
+<section id="tab-resep" class="hidden space-y-3.5">
+<div class="period-tab-strip bg-white border border-stone-200 rounded-xl p-2.5 space-y-1.5 shadow-xs" data-tab="resep">
+<div class="flex items-center justify-between gap-1 flex-wrap">
+<span class="text-[10px] text-stone-500"><span class="text-stone-400">Tampilan:</span> <b class="period-label-text text-amber-600">Ikuti acuan</b></span>
+<div class="flex flex-wrap gap-1 justify-end">
+<button type="button" data-period="master" onclick="setPeriod('master','resep')" class="px-2 py-1 rounded-lg text-[10px] font-bold bg-amber-600 text-white">Acuan</button>
+<button type="button" data-period="semua" onclick="setPeriod('semua','resep')" class="px-2 py-1 rounded-lg text-[10px] font-semibold bg-stone-200 text-stone-600">Semua</button>
+<button type="button" data-period="hari" onclick="setPeriod('hari','resep')" class="px-2 py-1 rounded-lg text-[10px] font-semibold bg-stone-200 text-stone-600">Harian</button>
+<button type="button" data-period="minggu" onclick="setPeriod('minggu','resep')" class="px-2 py-1 rounded-lg text-[10px] font-semibold bg-stone-200 text-stone-600">Mingguan</button>
+<button type="button" data-period="bulan" onclick="setPeriod('bulan','resep')" class="px-2 py-1 rounded-lg text-[10px] font-semibold bg-stone-200 text-stone-600">Bulanan</button>
+<button type="button" data-period="custom" onclick="setPeriod('custom','resep')" class="px-2 py-1 rounded-lg text-[10px] font-semibold bg-stone-200 text-stone-600">Rentang</button>
+</div></div>
+<div class="period-range-box hidden flex items-center gap-2 flex-wrap text-[10px]">
+<label class="flex items-center gap-1 text-stone-500">Dari
+<input type="date" class="period-from bg-stone-50 border border-stone-200 rounded px-1.5 py-0.5 text-[10px]" onchange="onPeriodDateChangeFromEl(this)"></label>
+<label class="period-to-wrap flex items-center gap-1 text-stone-500">Sampai
+<input type="date" class="period-to bg-stone-50 border border-stone-200 rounded px-1.5 py-0.5 text-[10px]" onchange="onPeriodDateChangeFromEl(this)"></label>
+</div></div>
+<div class="bg-white p-3.5 rounded-2xl shadow-xs border border-stone-200 space-y-3">
+<div class="flex justify-between items-center"><h3 class="font-bold text-xs">Tabel Resep Komposisi</h3><button onclick="openResepModal()" class="bg-amber-600 text-white px-2.5 py-1.5 rounded-xl text-xs font-semibold"><i class="fa-solid fa-plus"></i> Resep</button></div>
+<div class="overflow-x-auto"><table class="w-full text-left text-[11px] whitespace-nowrap"><thead><tr id="resep-table-head" class="border-b border-stone-200 text-stone-400 uppercase bg-amber-50"><th>Resep</th></tr></thead><tbody id="resep-table-body" class="divide-y divide-stone-100"></tbody></table></div></div></section>
+
+<section id="tab-belanja" class="hidden space-y-3.5">
+<div class="period-tab-strip bg-white border border-stone-200 rounded-xl p-2.5 space-y-1.5 shadow-xs" data-tab="belanja">
+<div class="flex items-center justify-between gap-1 flex-wrap">
+<span class="text-[10px] text-stone-500"><span class="text-stone-400">Tampilan:</span> <b class="period-label-text text-amber-600">Ikuti acuan</b></span>
+<div class="flex flex-wrap gap-1 justify-end">
+<button type="button" data-period="master" onclick="setPeriod('master','belanja')" class="px-2 py-1 rounded-lg text-[10px] font-bold bg-amber-600 text-white">Acuan</button>
+<button type="button" data-period="semua" onclick="setPeriod('semua','belanja')" class="px-2 py-1 rounded-lg text-[10px] font-semibold bg-stone-200 text-stone-600">Semua</button>
+<button type="button" data-period="hari" onclick="setPeriod('hari','belanja')" class="px-2 py-1 rounded-lg text-[10px] font-semibold bg-stone-200 text-stone-600">Harian</button>
+<button type="button" data-period="minggu" onclick="setPeriod('minggu','belanja')" class="px-2 py-1 rounded-lg text-[10px] font-semibold bg-stone-200 text-stone-600">Mingguan</button>
+<button type="button" data-period="bulan" onclick="setPeriod('bulan','belanja')" class="px-2 py-1 rounded-lg text-[10px] font-semibold bg-stone-200 text-stone-600">Bulanan</button>
+<button type="button" data-period="custom" onclick="setPeriod('custom','belanja')" class="px-2 py-1 rounded-lg text-[10px] font-semibold bg-stone-200 text-stone-600">Rentang</button>
+</div></div>
+<div class="period-range-box hidden flex items-center gap-2 flex-wrap text-[10px]">
+<label class="flex items-center gap-1 text-stone-500">Dari
+<input type="date" class="period-from bg-stone-50 border border-stone-200 rounded px-1.5 py-0.5 text-[10px]" onchange="onPeriodDateChangeFromEl(this)"></label>
+<label class="period-to-wrap flex items-center gap-1 text-stone-500">Sampai
+<input type="date" class="period-to bg-stone-50 border border-stone-200 rounded px-1.5 py-0.5 text-[10px]" onchange="onPeriodDateChangeFromEl(this)"></label>
+</div></div>
+<div class="bg-white p-3.5 rounded-2xl shadow-xs border border-stone-200 space-y-3">
+<div class="flex justify-between items-center"><h3 class="font-bold text-xs" id="belanja-form-title">Pencatatan Belanja</h3><div class="flex space-x-1"><button onclick="resetBelanjaForm()" id="belanja-cancel-btn" class="hidden bg-stone-200 text-stone-700 px-2.5 py-1.5 rounded-xl text-[11px] font-semibold">Batal</button><button onclick="openBahanModal()" class="bg-stone-800 text-white px-2.5 py-1.5 rounded-xl text-[11px] font-semibold"><i class="fa-solid fa-boxes-stacked"></i> Barang</button></div></div>
+<div class="bg-stone-50 p-3 rounded-xl border border-stone-200 space-y-2 text-xs">
+<div><label class="font-semibold text-stone-600 text-[10px] block mb-0.5">Tanggal & Barang</label><div class="grid grid-cols-2 gap-2"><input type="date" id="belanja-date" class="bg-white border border-stone-200 rounded px-2 py-1.5 text-xs"><select id="belanja-barang" class="bg-white border border-stone-200 rounded px-2 py-1.5 text-xs"></select></div></div>
+<div class="grid grid-cols-2 gap-2"><div><label class="font-semibold text-stone-600 text-[10px] block mb-0.5">Jumlah</label><input type="number" id="belanja-jumlah" placeholder="cth: 5" min="0.000001" step="any" class="w-full bg-white border border-stone-200 rounded px-2 py-1.5 text-xs"></div><div><label class="font-semibold text-stone-600 text-[10px] block mb-0.5">Total Biaya (Rp)</label><input type="number" id="belanja-total" placeholder="cth: 50000" min="0" step="any" class="w-full bg-white border border-stone-200 rounded px-2 py-1.5 text-xs"></div></div>
+<div><label class="font-semibold text-stone-600 text-[10px] block mb-0.5">Asal Belanja</label><div class="flex space-x-2"><select id="belanja-asal" class="flex-1 bg-white border border-stone-200 rounded px-2 py-1.5 text-xs"><option>Pusat</option><option>Cabang</option></select><button id="belanja-save-btn" onclick="saveBelanja()" class="bg-amber-600 text-white px-4 py-1.5 rounded text-xs font-semibold">Simpan</button></div></div></div>
+<div class="overflow-x-auto"><table class="w-full text-left text-[11px] whitespace-nowrap"><thead><tr class="border-b border-stone-200 text-stone-400 uppercase bg-stone-50"><th class="py-2 px-2">Tanggal</th><th class="py-2 px-2">Barang</th><th class="py-2 px-2">Jumlah</th><th class="py-2 px-2">Total</th><th class="py-2 px-2">Asal</th><th class="py-2 px-2 text-center">Aksi</th></tr></thead><tbody id="belanja-table-body" class="divide-y divide-stone-100"></tbody></table></div></div></section>
+
+<section id="tab-stok" class="hidden space-y-3.5">
+<div class="period-tab-strip bg-white border border-stone-200 rounded-xl p-2.5 space-y-1.5 shadow-xs" data-tab="stok">
+<div class="flex items-center justify-between gap-1 flex-wrap">
+<span class="text-[10px] text-stone-500"><span class="text-stone-400">Tampilan:</span> <b class="period-label-text text-amber-600">Ikuti acuan</b></span>
+<div class="flex flex-wrap gap-1 justify-end">
+<button type="button" data-period="master" onclick="setPeriod('master','stok')" class="px-2 py-1 rounded-lg text-[10px] font-bold bg-amber-600 text-white">Acuan</button>
+<button type="button" data-period="semua" onclick="setPeriod('semua','stok')" class="px-2 py-1 rounded-lg text-[10px] font-semibold bg-stone-200 text-stone-600">Semua</button>
+<button type="button" data-period="hari" onclick="setPeriod('hari','stok')" class="px-2 py-1 rounded-lg text-[10px] font-semibold bg-stone-200 text-stone-600">Harian</button>
+<button type="button" data-period="minggu" onclick="setPeriod('minggu','stok')" class="px-2 py-1 rounded-lg text-[10px] font-semibold bg-stone-200 text-stone-600">Mingguan</button>
+<button type="button" data-period="bulan" onclick="setPeriod('bulan','stok')" class="px-2 py-1 rounded-lg text-[10px] font-semibold bg-stone-200 text-stone-600">Bulanan</button>
+<button type="button" data-period="custom" onclick="setPeriod('custom','stok')" class="px-2 py-1 rounded-lg text-[10px] font-semibold bg-stone-200 text-stone-600">Rentang</button>
+</div></div>
+<div class="period-range-box hidden flex items-center gap-2 flex-wrap text-[10px]">
+<label class="flex items-center gap-1 text-stone-500">Dari
+<input type="date" class="period-from bg-stone-50 border border-stone-200 rounded px-1.5 py-0.5 text-[10px]" onchange="onPeriodDateChangeFromEl(this)"></label>
+<label class="period-to-wrap flex items-center gap-1 text-stone-500">Sampai
+<input type="date" class="period-to bg-stone-50 border border-stone-200 rounded px-1.5 py-0.5 text-[10px]" onchange="onPeriodDateChangeFromEl(this)"></label>
+</div></div>
+<div class="bg-white p-3.5 rounded-2xl shadow-xs border border-stone-200 space-y-3"><h3 class="font-bold text-xs">Stok Bahan &amp; Sisa <span class="stok-nilai-col">· Total Rupiah</span></h3><div class="overflow-x-auto"><table class="w-full text-left text-[11px]"><thead><tr class="border-b border-stone-200 text-stone-400 uppercase bg-stone-50"><th class="py-2 px-2">Barang</th><th class="py-2 px-2">In</th><th class="py-2 px-2">Out</th><th class="py-2 px-2">Sisa</th><th class="py-2 px-2 stok-nilai-col">Total Nilai (Rp)</th></tr></thead><tbody id="stok-table-body" class="divide-y divide-stone-100"></tbody></table></div></div></section>
+
+<section id="tab-opname" class="hidden space-y-3.5">
+<div class="period-tab-strip bg-white border border-stone-200 rounded-xl p-2.5 space-y-1.5 shadow-xs" data-tab="opname">
+<div class="flex items-center justify-between gap-1 flex-wrap">
+<span class="text-[10px] text-stone-500"><span class="text-stone-400">Tampilan:</span> <b class="period-label-text text-amber-600">Ikuti acuan</b></span>
+<div class="flex flex-wrap gap-1 justify-end">
+<button type="button" data-period="master" onclick="setPeriod('master','opname')" class="px-2 py-1 rounded-lg text-[10px] font-bold bg-amber-600 text-white">Acuan</button>
+<button type="button" data-period="semua" onclick="setPeriod('semua','opname')" class="px-2 py-1 rounded-lg text-[10px] font-semibold bg-stone-200 text-stone-600">Semua</button>
+<button type="button" data-period="hari" onclick="setPeriod('hari','opname')" class="px-2 py-1 rounded-lg text-[10px] font-semibold bg-stone-200 text-stone-600">Harian</button>
+<button type="button" data-period="minggu" onclick="setPeriod('minggu','opname')" class="px-2 py-1 rounded-lg text-[10px] font-semibold bg-stone-200 text-stone-600">Mingguan</button>
+<button type="button" data-period="bulan" onclick="setPeriod('bulan','opname')" class="px-2 py-1 rounded-lg text-[10px] font-semibold bg-stone-200 text-stone-600">Bulanan</button>
+<button type="button" data-period="custom" onclick="setPeriod('custom','opname')" class="px-2 py-1 rounded-lg text-[10px] font-semibold bg-stone-200 text-stone-600">Rentang</button>
+</div></div>
+<div class="period-range-box hidden flex items-center gap-2 flex-wrap text-[10px]">
+<label class="flex items-center gap-1 text-stone-500">Dari
+<input type="date" class="period-from bg-stone-50 border border-stone-200 rounded px-1.5 py-0.5 text-[10px]" onchange="onPeriodDateChangeFromEl(this)"></label>
+<label class="period-to-wrap flex items-center gap-1 text-stone-500">Sampai
+<input type="date" class="period-to bg-stone-50 border border-stone-200 rounded px-1.5 py-0.5 text-[10px]" onchange="onPeriodDateChangeFromEl(this)"></label>
+</div></div>
+<div class="bg-white p-3.5 rounded-2xl shadow-xs border border-stone-200 space-y-3">
+<div class="flex justify-between items-center"><h3 class="font-bold text-xs" id="opname-form-title">Stok Opname Fisik</h3><button onclick="resetOpnameForm()" id="opname-cancel-btn" class="hidden bg-stone-200 text-stone-700 px-2 py-1 rounded text-[10px] font-semibold">Batal</button></div>
+<div class="bg-stone-50 p-3 rounded-xl border border-stone-200 space-y-2 text-xs"><div class="grid grid-cols-2 gap-2"><div><label class="font-semibold text-stone-600 text-[10px] block mb-0.5">Tanggal</label><input type="date" id="opname-date" class="w-full bg-white border border-stone-200 rounded px-2 py-1.5 text-xs"></div><div><label class="font-semibold text-stone-600 text-[10px] block mb-0.5">Barang</label><select id="opname-barang" class="w-full bg-white border border-stone-200 rounded px-2 py-1.5 text-xs"></select></div></div>
+<div><label class="font-semibold text-stone-600 text-[10px] block mb-0.5">Fisik Real</label><div class="flex space-x-2"><input type="number" id="opname-real" placeholder="cth: 120" min="0" step="any" class="flex-1 bg-white border border-stone-200 rounded px-2 py-1.5 text-xs"><button id="opname-save-btn" onclick="saveOpname()" class="bg-amber-600 text-white px-4 py-1.5 rounded text-xs font-semibold">Simpan</button></div></div></div>
+<div class="overflow-x-auto"><table class="w-full text-left text-[11px] whitespace-nowrap"><thead><tr class="border-b border-stone-200 text-stone-400 uppercase bg-stone-50"><th class="py-2 px-2">Tgl</th><th class="py-2 px-2">Barang</th><th class="py-2 px-2">App / Real</th><th class="py-2 px-2">Selisih</th><th class="py-2 px-2 text-center">Aksi</th></tr></thead><tbody id="opname-table-body" class="divide-y divide-stone-100"></tbody></table></div></div>
+<div class="bg-white p-3.5 rounded-2xl shadow-xs border border-stone-200 space-y-2">
+    <h3 class="font-bold text-xs text-rose-700">Stok Loss per Bahan <span class="text-[10px] font-normal text-stone-400">(periode terpilih)</span></h3>
+    <p class="text-[10px] text-stone-400">Loss = total selisih negatif opname (fisik lebih sedikit dari sistem).</p>
+    <div class="overflow-x-auto"><table class="w-full text-left text-[11px]"><thead><tr class="border-b border-stone-200 text-stone-400 uppercase bg-rose-50"><th class="py-2 px-2">Barang</th><th class="py-2 px-2">Loss (qty)</th><th class="py-2 px-2">Surplus (qty)</th><th class="py-2 px-2">Net selisih</th></tr></thead><tbody id="opname-loss-body" class="divide-y divide-stone-100"></tbody></table></div>
+</div>
+</section>
+
+<section id="tab-setoran" class="hidden space-y-3.5">
+<div class="period-tab-strip bg-white border border-stone-200 rounded-xl p-2.5 space-y-1.5 shadow-xs" data-tab="setoran">
+<div class="flex items-center justify-between gap-1 flex-wrap">
+<span class="text-[10px] text-stone-500"><span class="text-stone-400">Tampilan:</span> <b class="period-label-text text-amber-600">Ikuti acuan</b></span>
+<div class="flex flex-wrap gap-1 justify-end">
+<button type="button" data-period="master" onclick="setPeriod('master','setoran')" class="px-2 py-1 rounded-lg text-[10px] font-bold bg-amber-600 text-white">Acuan</button>
+<button type="button" data-period="semua" onclick="setPeriod('semua','setoran')" class="px-2 py-1 rounded-lg text-[10px] font-semibold bg-stone-200 text-stone-600">Semua</button>
+<button type="button" data-period="hari" onclick="setPeriod('hari','setoran')" class="px-2 py-1 rounded-lg text-[10px] font-semibold bg-stone-200 text-stone-600">Harian</button>
+<button type="button" data-period="minggu" onclick="setPeriod('minggu','setoran')" class="px-2 py-1 rounded-lg text-[10px] font-semibold bg-stone-200 text-stone-600">Mingguan</button>
+<button type="button" data-period="bulan" onclick="setPeriod('bulan','setoran')" class="px-2 py-1 rounded-lg text-[10px] font-semibold bg-stone-200 text-stone-600">Bulanan</button>
+<button type="button" data-period="custom" onclick="setPeriod('custom','setoran')" class="px-2 py-1 rounded-lg text-[10px] font-semibold bg-stone-200 text-stone-600">Rentang</button>
+</div></div>
+<div class="period-range-box hidden flex items-center gap-2 flex-wrap text-[10px]">
+<label class="flex items-center gap-1 text-stone-500">Dari
+<input type="date" class="period-from bg-stone-50 border border-stone-200 rounded px-1.5 py-0.5 text-[10px]" onchange="onPeriodDateChangeFromEl(this)"></label>
+<label class="period-to-wrap flex items-center gap-1 text-stone-500">Sampai
+<input type="date" class="period-to bg-stone-50 border border-stone-200 rounded px-1.5 py-0.5 text-[10px]" onchange="onPeriodDateChangeFromEl(this)"></label>
+</div></div>
+<div class="bg-white p-3.5 rounded-2xl shadow-xs border border-stone-200 space-y-3">
+<div class="flex justify-between items-center"><h3 class="font-bold text-xs" id="setoran-form-title">Pencatatan Setoran Uang</h3><button onclick="resetSetoranForm()" id="setoran-cancel-btn" class="hidden bg-stone-200 text-stone-700 px-2 py-1 rounded text-[10px] font-semibold">Batal</button></div>
+<div class="bg-stone-50 p-3 rounded-xl border border-stone-200 space-y-2 text-xs"><div><label class="font-semibold text-stone-600 text-[10px] block mb-0.5">Tanggal</label><input type="date" id="setoran-date" class="w-full bg-white border border-stone-200 rounded px-2 py-1.5 text-xs"></div>
+<div><label class="font-semibold text-stone-600 text-[10px] block mb-0.5">Nominal (Rp)</label><div class="flex space-x-2"><input type="number" id="setoran-nominal" placeholder="cth: 250000" class="flex-1 bg-white border border-stone-200 rounded px-2 py-1.5 text-xs"><button id="setoran-save-btn" onclick="saveSetoran()" class="bg-emerald-600 text-white px-4 py-1.5 rounded text-xs font-semibold">Setor</button></div></div></div>
+<div class="overflow-x-auto"><table class="w-full text-left text-[11px]"><thead><tr class="border-b border-stone-200 text-stone-400 uppercase bg-stone-50"><th class="py-2 px-2">Tanggal</th><th class="py-2 px-2">Nominal</th><th class="py-2 px-2 text-center">Aksi</th></tr></thead><tbody id="setoran-table-body" class="divide-y divide-stone-100"></tbody></table></div></div></section>
+</main>
+
+<nav class="bg-stone-900 text-stone-400 flex justify-around items-center py-2 px-1 fixed bottom-0 left-0 right-0 z-30 border-t border-stone-800 shadow-lg text-[10px]">
+<script>
+const navItems=[['dashboard','chart-pie','Dash'],['pos','cash-register','Kasir'],['harga','tags','Harga'],['resep','book-open','Resep'],['belanja','cart-shopping','Belanja'],['stok','boxes-stacked','Stok'],['opname','clipboard-check','Opname'],['setoran','wallet','Setor']];
+document.write(navItems.map(x=>`<a href="#" onclick="switchTab('${x[0]}');return false" id="nav-${x[0]}" class="flex flex-col items-center py-1 px-2 hover:text-white"><i class="fa-solid fa-${x[1]} text-sm mb-0.5"></i><span>${x[2]}</span></a>`).join(''));
+</script>
+</nav>
+
+<div id="harga-modal" class="fixed inset-0 bg-stone-900/60 hidden items-center justify-center z-50 p-4"><div class="bg-white rounded-2xl max-w-xs w-full p-4 space-y-3"><h3 id="modal-harga-title" class="font-bold text-xs">Tambah Menu Baru</h3><input type="text" id="modal-menu-name" placeholder="Nama Minuman" class="w-full bg-stone-50 border rounded px-2 py-1.5 text-xs"><input type="number" id="modal-menu-price" placeholder="Harga (Rp)" class="w-full bg-stone-50 border rounded px-2 py-1.5 text-xs"><input type="number" step="0.5" id="modal-menu-point" placeholder="Point" class="w-full bg-stone-50 border rounded px-2 py-1.5 text-xs"><label class="text-[10px] text-stone-500 block">Berlaku mulai<input type="date" id="modal-menu-effective" class="w-full bg-stone-50 border rounded px-2 py-1.5 text-xs mt-0.5"></label><div class="flex space-x-2"><button onclick="closeHargaModal()" class="flex-1 bg-stone-100 py-2 rounded text-xs">Batal</button><button onclick="saveHargaModal()" class="flex-1 bg-amber-600 text-white py-2 rounded text-xs font-semibold">Simpan</button></div></div></div>
+<div id="resep-modal" class="fixed inset-0 bg-stone-900/60 hidden items-center justify-center z-50 p-4"><div class="bg-white rounded-2xl max-w-xs w-full p-4 space-y-3 max-h-[80vh] overflow-y-auto"><h3 id="modal-resep-title" class="font-bold text-xs">Tambah Resep Baru</h3><input type="text" id="modal-resep-name" class="w-full bg-stone-50 border rounded px-2 py-1.5 text-xs"><label class="text-[10px] text-stone-500 block">Berlaku mulai<input type="date" id="modal-resep-effective" class="w-full bg-stone-50 border rounded px-2 py-1.5 text-xs mt-0.5"></label><div id="modal-resep-ingredients" class="space-y-1.5 max-h-36 overflow-y-auto pr-1"></div><div class="flex space-x-2"><button onclick="closeResepModal()" class="flex-1 bg-stone-100 py-2 rounded text-xs">Batal</button><button onclick="saveNewResep()" class="flex-1 bg-amber-600 text-white py-2 rounded text-xs font-semibold">Simpan</button></div></div></div>
+<div id="bahan-modal" class="fixed inset-0 bg-stone-900/60 hidden items-center justify-center z-50 p-4"><div class="bg-white rounded-2xl max-w-sm w-full p-4 space-y-3 max-h-[85vh] overflow-y-auto">
+<h3 id="modal-bahan-title" class="font-bold text-xs">Kelola Nama Barang</h3>
+<div id="bahan-list-box" class="space-y-1 max-h-40 overflow-y-auto border border-stone-100 rounded-xl p-2"></div>
+<div class="border-t border-stone-100 pt-2 space-y-2">
+<p id="modal-bahan-hint" class="text-[10px] text-stone-400">Tambah barang baru atau ketuk ✎ untuk ubah nama (belanja, resep, opname ikut berubah).</p>
+<input type="text" id="modal-bahan-name" placeholder="Nama barang" class="w-full bg-stone-50 border rounded px-2 py-1.5 text-xs">
+<div class="grid grid-cols-2 gap-2">
+<label class="text-[10px] text-stone-500">Satuan<input type="text" id="modal-bahan-unit" placeholder="g / ml / pcs" class="w-full bg-stone-50 border rounded px-2 py-1.5 text-xs mt-0.5"></label>
+<label class="text-[10px] text-stone-500">Stok minimum<input type="number" id="modal-bahan-min" placeholder="0" min="0" step="any" class="w-full bg-stone-50 border rounded px-2 py-1.5 text-xs mt-0.5"></label>
+</div>
+<input type="hidden" id="modal-bahan-edit-old" value="">
+<div class="flex space-x-2">
+<button onclick="closeBahanModal()" class="flex-1 bg-stone-100 py-2 rounded text-xs">Tutup</button>
+<button id="modal-bahan-save-btn" onclick="saveBahanModal()" class="flex-1 bg-amber-600 text-white py-2 rounded text-xs font-semibold">Tambah</button>
+</div></div></div></div>
+<div id="trx-modal" class="fixed inset-0 bg-stone-900/60 hidden items-center justify-center z-50 p-4"><div class="bg-white rounded-2xl max-w-xs w-full p-4 space-y-3"><h3 class="font-bold text-xs">Edit Riwayat Transaksi</h3><input type="date" id="modal-trx-date" class="w-full bg-stone-50 border rounded px-2 py-1.5 text-xs"><select id="modal-trx-name" class="w-full bg-stone-50 border rounded px-2 py-1.5 text-xs"></select><input type="number" id="modal-trx-qty" min="1" class="w-full bg-stone-50 border rounded px-2 py-1.5 text-xs"><div class="flex space-x-2"><button onclick="closeTrxModal()" class="flex-1 bg-stone-100 py-2 rounded text-xs">Batal</button><button onclick="saveTrxEdit()" class="flex-1 bg-amber-600 text-white py-2 rounded text-xs font-semibold">Simpan</button></div></div></div>
+<div id="toast" class="fixed bottom-16 right-3 bg-stone-900 text-white px-3 py-1.5 rounded-xl text-[11px] shadow-lg transform translate-y-20 opacity-0 transition duration-300 z-50"><span id="toast-msg">Berhasil</span></div>
+
+<script>
+const APP_VERSION='3.0.3-online', DATA_KEY='kopi_genggam_v3_demo', LEGACY_KEY='kopi_genggam_v1_data', BACKUP_INDEX_KEY='kopi_genggam_backup_index_v2';
+
+// ===== SUPABASE =====
+const SUPABASE_URL = 'https://lmuqprmkbrawzfzbmemi.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_MOY0jmXGorfe8bNFNTiC2g_tLEQ47Mb';
+let sb = null;
+try {
+  if (window.supabase && SUPABASE_URL && SUPABASE_ANON_KEY) {
+    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  }
+} catch (e) { console.error('Supabase init', e); }
+
+async function fetchProfile(userId){
+  const { data, error } = await sb.from('profiles').select('id,full_name,role,branch_id,is_active').eq('id', userId).maybeSingle();
+  if (error) throw error;
+  return data;
+}
+async function fetchBranches(){
+  const { data, error } = await sb.from('branches').select('id,code,name,is_active').eq('is_active', true).order('code');
+  if (error) throw error;
+  return data || [];
+}
+
+// ===== CLOUD SYNC (operasional) =====
+let cloudMenuByName = {};   // name -> {id, name, price, point}
+let cloudIngredientByName = {}; // name -> {id, name}
+let cloudSyncing = false;
+let lastCloudPullAt = null;
+let autoRefreshTimer = null;
+const AUTO_REFRESH_KEY = 'kopi_genggam_auto_refresh';
+const AUTO_REFRESH_MS = 15000; // 15 detik
+
+function isOnlineSession(){
+  return !!(session && session.online && sb);
+}
+function getAutoRefreshPref(){
+  try{ return localStorage.getItem(AUTO_REFRESH_KEY)==='1'; }catch(e){ return false; }
+}
+function setAutoRefresh(on){
+  try{ localStorage.setItem(AUTO_REFRESH_KEY, on?'1':'0'); }catch(e){}
+  const t=document.getElementById('auto-refresh-toggle');
+  if(t) t.checked=!!on;
+  stopAutoRefresh();
+  if(on && isOnlineSession()) startAutoRefresh();
+  showToast(on?'Auto-refresh ON (tiap 15 dtk)':'Auto-refresh OFF');
+}
+async function manualCloudRefresh(){
+  if(!isOnlineSession()){
+    showToast('Refresh cloud hanya setelah login online');
+    return;
+  }
+  const btn=document.getElementById('btn-cloud-refresh');
+  if(btn){ btn.disabled=true; btn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i>'; }
+  try{
+    await cloudPullAll();
+  }catch(e){
+    showToast('Refresh gagal: '+(e.message||e));
+  }finally{
+    if(btn){ btn.disabled=false; btn.innerHTML='<i class="fa-solid fa-rotate"></i> Refresh'; }
+  }
+}
+function startAutoRefresh(){
+  stopAutoRefresh();
+  if(!isOnlineSession()) return;
+  autoRefreshTimer=setInterval(()=>{
+    if(!isOnlineSession()||document.hidden) return;
+    if(cloudSyncing) return;
+    cloudPullAll({silent:true}).catch(()=>{});
+  }, AUTO_REFRESH_MS);
+}
+function stopAutoRefresh(){
+  if(autoRefreshTimer){ clearInterval(autoRefreshTimer); autoRefreshTimer=null; }
+}
+function updateAutoRefreshUI(){
+  const wrap=document.getElementById('auto-refresh-wrap');
+  const t=document.getElementById('auto-refresh-toggle');
+  if(!wrap) return;
+  wrap.classList.remove('hidden');
+  const online=isOnlineSession();
+  if(t){
+    t.disabled=!online;
+    t.checked=online && getAutoRefreshPref();
+    t.title=online?'Tarik data server tiap 15 detik':'Hanya aktif setelah login online';
+  }
+  wrap.style.opacity=online?'1':'0.55';
+  if(online && getAutoRefreshPref()) startAutoRefresh();
+  else stopAutoRefresh();
+}
+function onlineBranchId(){
+  if(!isOnlineSession()) return null;
+  if(isCabang()) return session.branchId;
+  if(activeBranchId && activeBranchId !== 'ALL') return activeBranchId;
+  return null;
+}
+function setCloudStatus(msg){
+  try{
+    const el=document.getElementById('session-label');
+    if(el && isOnlineSession() && msg){
+      // keep account label; toast is enough
+    }
+    if(msg) console.log('[cloud]', msg);
+  }catch(e){}
+}
+
+async function ensureCloudMasterMaps(){
+  if(!sb) return;
+  // menus
+  const { data: menus, error: e1 } = await sb.from('menus').select('id,name,point,is_active');
+  if(e1) throw e1;
+  cloudMenuByName = {};
+  (menus||[]).forEach(m=>{ cloudMenuByName[m.name]=m; });
+  // if empty, seed from local menuHarga (pusat or first online user)
+  if(!(menus||[]).length && menuHarga.length){
+    for(const m of menuHarga){
+      const { data, error } = await sb.from('menus').insert({name:m.name, point:num(m.point)||0, is_active:true}).select('id,name,point').maybeSingle();
+      if(!error && data) cloudMenuByName[data.name]=data;
+    }
+  }
+  // prices latest
+  const { data: prices } = await sb.from('menu_price_versions').select('menu_id,price,point,from_date').order('from_date',{ascending:false});
+  const priceByMenu = {};
+  (prices||[]).forEach(p=>{ if(!priceByMenu[p.menu_id]) priceByMenu[p.menu_id]=p; });
+  // ingredients
+  const { data: ings, error: e2 } = await sb.from('ingredients').select('id,name,unit,min_stock,is_active');
+  if(e2) throw e2;
+  cloudIngredientByName = {};
+  (ings||[]).forEach(i=>{ cloudIngredientByName[i.name]=i; });
+  if(!(ings||[]).length && bahanList.length){
+    for(const n of bahanList){
+      const meta=getBahanMeta(n);
+      const { data, error } = await sb.from('ingredients').insert({name:n, unit:meta.unit||'', min_stock:num(meta.minStock)||0, is_active:true}).select('id,name').maybeSingle();
+      if(!error && data) cloudIngredientByName[data.name]=data;
+    }
+  }
+  // reflect cloud menus into local display list (keep local structure)
+  if(Object.keys(cloudMenuByName).length){
+    const names = Object.keys(cloudMenuByName);
+    menuHarga = names.map(name=>{
+      const m=cloudMenuByName[name];
+      const pr=priceByMenu[m.id];
+      return {
+        name,
+        price: pr?num(pr.price):(menuHarga.find(x=>x.name===name)?.price||0),
+        point: pr?num(pr.point):num(m.point),
+        _id: m.id,
+        effectiveDate: pr?pr.from_date:today(),
+        priceVersions: pr?[{from:pr.from_date, price:num(pr.price), point:num(pr.point)}]:[]
+      };
+    });
+  }
+  if(Object.keys(cloudIngredientByName).length){
+    bahanList = Object.keys(cloudIngredientByName);
+  }
+}
+
+async function pullBranchOps(branchId){
+  if(!sb || !branchId || branchId==='ALL') return emptyBranchPack();
+  const pack = emptyBranchPack();
+  // sales -> transaksiData
+  const { data: sales, error: es } = await sb.from('sales').select('*').eq('branch_id', branchId).order('sale_date',{ascending:true});
+  if(es) throw es;
+  pack.transaksiData = (sales||[]).map(s=>({
+    id: s.id,
+    date: s.sale_date,
+    name: s.menu_name,
+    qty: num(s.qty),
+    total: num(s.line_total),
+    _cloud: true
+  }));
+  // purchases -> belanjaData
+  const { data: buys, error: eb } = await sb.from('purchases').select('*, ingredients(name)').eq('branch_id', branchId).order('purchase_date',{ascending:true});
+  if(eb) throw eb;
+  pack.belanjaData = (buys||[]).map(b=>({
+    id: b.id,
+    date: b.purchase_date,
+    barang: (b.ingredients&&b.ingredients.name)||'',
+    jumlah: num(b.qty),
+    total: num(b.total_cost),
+    asal: b.source||'Cabang',
+    _cloud: true
+  }));
+  // deposits
+  const { data: deps, error: ed } = await sb.from('cash_deposits').select('*').eq('branch_id', branchId).order('deposit_date',{ascending:true});
+  if(ed) throw ed;
+  pack.setoranData = (deps||[]).map(d=>({
+    id: d.id,
+    date: d.deposit_date,
+    nominal: num(d.amount),
+    ket: d.note||'',
+    _cloud: true
+  }));
+  // opname
+  const { data: ops, error: eo } = await sb.from('stock_opnames').select('*, ingredients(name)').eq('branch_id', branchId).order('opname_date',{ascending:true});
+  if(eo) throw eo;
+  pack.opnameData = (ops||[]).map(o=>({
+    id: o.id,
+    date: o.opname_date,
+    barang: (o.ingredients&&o.ingredients.name)||'',
+    apps: num(o.system_qty),
+    real: num(o.physical_qty),
+    selisih: num(o.variance),
+    _cloud: true
+  }));
+  return pack;
+}
+
+async function cloudPullAll(opts){
+  const silent=opts&&opts.silent;
+  if(!isOnlineSession()) return;
+  if(cloudSyncing) return;
+  cloudSyncing = true;
+  try{
+    if(!silent) showToast('Sinkronisasi data cloud...');
+    await ensureCloudMasterMaps();
+    const ids = (activeBranchId==='ALL')
+      ? DEMO_BRANCHES.map(b=>b.id)
+      : [onlineBranchId()].filter(Boolean);
+    for(const id of ids){
+      if(!id) continue;
+      const pack = await pullBranchOps(id);
+      branchStore[id] = pack;
+    }
+    if(activeBranchId==='ALL'){
+      loadActiveBranchIntoGlobals();
+    }else if(onlineBranchId()){
+      activeBranchId = onlineBranchId();
+      loadActiveBranchIntoGlobals();
+    }
+    lastCloudPullAt = new Date().toISOString();
+    saveToLocalStorage();
+    renderAll();
+    if(!silent) showToast('Data cloud dimuat');
+  }catch(e){
+    console.error(e);
+    if(!silent) showToast('Gagal tarik cloud: '+(e.message||e));
+  }finally{
+    cloudSyncing = false;
+  }
+}
+
+async function cloudPushSale(item, branchId){
+  await ensureCloudMasterMaps();
+  let menu = cloudMenuByName[item.name];
+  if(!menu){
+    const { data, error } = await sb.from('menus').insert({name:item.name, point:0, is_active:true}).select('id,name,point').maybeSingle();
+    if(error) throw error;
+    menu = data;
+    cloudMenuByName[item.name]=menu;
+  }
+  const unitPrice = num(item.qty)? (num(item.total)/num(item.qty)) : num(item.total);
+  const row = {
+    branch_id: branchId,
+    sale_date: dateKey(item.date)||today(),
+    menu_id: menu.id,
+    menu_name: item.name,
+    qty: num(item.qty),
+    unit_price: unitPrice,
+    line_total: num(item.total),
+    created_by: session.userId||null
+  };
+  const { data, error } = await sb.from('sales').insert(row).select('id').maybeSingle();
+  if(error) throw error;
+  return data && data.id;
+}
+
+async function cloudPushPurchase(item, branchId){
+  await ensureCloudMasterMaps();
+  let ing = cloudIngredientByName[item.barang];
+  if(!ing){
+    const { data, error } = await sb.from('ingredients').insert({name:item.barang, unit:'', min_stock:0, is_active:true}).select('id,name').maybeSingle();
+    if(error) throw error;
+    ing = data;
+    cloudIngredientByName[item.barang]=ing;
+  }
+  const row = {
+    branch_id: branchId,
+    ingredient_id: ing.id,
